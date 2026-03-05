@@ -14,6 +14,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.database import init_db, get_db, SessionLocal
 from app.models import ProjectDB, ProjectOut, ProjectList, StatsOut
 from app.scrapers.feed_scraper import scrape_all_feeds
+from app.scrapers.permit_scraper import scrape_permits
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -25,7 +26,9 @@ async def run_scraper():
     """Pull RSS feeds, extract projects, upsert into DB."""
     log.info("Starting scrape run…")
     try:
-        projects = await scrape_all_feeds()
+        rss_projects = await scrape_all_feeds()
+        permit_projects = await scrape_permits()
+        projects = rss_projects + permit_projects
         async with SessionLocal() as db:
             for p in projects:
                 # Simple dedup by source_url

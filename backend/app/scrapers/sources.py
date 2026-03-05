@@ -34,6 +34,63 @@ RSS_SOURCES = [
         "url": "https://www.riksbyggen.se/feed/",
         "default_type": "Bostäder",
     },
+    # ── Additional sources ────────────────────────────────────────────────────
+    {
+        "name": "Fastighetstidningen",
+        "url": "https://fastighetstidningen.se/feed/",
+        "default_type": "Kommersiellt",
+    },
+    {
+        "name": "Ny Teknik",
+        "url": "https://www.nyteknik.se/rss",
+        "default_type": "Övrigt",
+    },
+    {
+        "name": "Samhällsbyggaren",
+        "url": "https://samhallsbyggaren.se/feed/",
+        "default_type": "Offentligt",
+    },
+    {
+        "name": "Husbyggaren",
+        "url": "https://husbyggaren.se/feed/",
+        "default_type": "Bostäder",
+    },
+    {
+        "name": "Arkitekten",
+        "url": "https://arkitekten.se/feed/",
+        "default_type": "Kommersiellt",
+    },
+    {
+        "name": "Boverket",
+        "url": "https://www.boverket.se/rss/nyheter/",
+        "default_type": "Offentligt",
+    },
+    {
+        "name": "Infrastruktur i Fokus",
+        "url": "https://www.infrastrukturifokus.se/feed/",
+        "default_type": "Infrastruktur",
+    },
+    {
+        "name": "Energi & Hållbart Byggande",
+        "url": "https://www.energiochklimat.se/feed/",
+        "default_type": "Industri",
+    },
+    # ── Municipality news feeds (include planning/permit announcements) ────────
+    {
+        "name": "Stockholms stad – Nyheter",
+        "url": "https://www.stockholm.se/OmStockholm/Nyheter/rss/",
+        "default_type": "Offentligt",
+    },
+    {
+        "name": "Göteborgs stad – Nyheter",
+        "url": "https://goteborg.se/wps/portal/start/om-goteborg/nyheter/rss",
+        "default_type": "Offentligt",
+    },
+    {
+        "name": "Malmö stad – Nyheter",
+        "url": "https://malmo.se/rss/nyheter.xml",
+        "default_type": "Offentligt",
+    },
 ]
 
 # Swedish county (region) name mapping — used to detect region from text

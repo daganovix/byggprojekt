@@ -2,6 +2,7 @@
 RSS feed scraper for Swedish construction news.
 Parses feeds, extracts structured project fields, geocodes locations.
 """
+import asyncio
 import re
 import logging
 from datetime import datetime
@@ -157,65 +158,65 @@ async def scrape_all_feeds() -> list[dict]:
             log.warning("Failed to fetch %s: %s", source["name"], exc)
             continue
 
-            for entry in feed.entries[:20]:  # max 20 per feed
-                raw = _clean_html(
-                    getattr(entry, "summary", "") or getattr(entry, "content", [{}])[0].get("value", "")
+        for entry in feed.entries[:20]:  # max 20 per feed
+            raw = _clean_html(
+                getattr(entry, "summary", "") or getattr(entry, "content", [{}])[0].get("value", "")
+            )
+            full_text = f"{getattr(entry, 'title', '')} {raw}"
+
+            # Filter: skip articles unlikely to be about construction projects
+            construction_kw = [
+                "bygg", "konstruktion", "projekt", "fastighet", "renovering",
+                "exploatering", "infrastruktur", "bostäder", "kontor", "fabrik",
+            ]
+            if not any(kw in full_text.lower() for kw in construction_kw):
+                continue
+
+            title = _build_title(entry, full_text)
+            cost_label, cost_msek = _extract_cost(full_text)
+            start, end = _extract_timeline(full_text)
+            location, region = _extract_location(full_text)
+            participants = _extract_participants(full_text)
+            project_type = _classify_type(full_text, source["default_type"])
+
+            # Geocode
+            coords = await geocode_location(location, region)
+            lat = coords[0] if coords else None
+            lng = coords[1] if coords else None
+
+            # Published date
+            try:
+                pub = dateparser.parse(
+                    getattr(entry, "published", "") or str(datetime.utcnow())
                 )
-                full_text = f"{getattr(entry, 'title', '')} {raw}"
+            except Exception:
+                pub = datetime.utcnow()
 
-                # Filter: skip articles unlikely to be about construction projects
-                construction_kw = [
-                    "bygg", "konstruktion", "projekt", "fastighet", "renovering",
-                    "exploatering", "infrastruktur", "bostäder", "kontor", "fabrik",
-                ]
-                if not any(kw in full_text.lower() for kw in construction_kw):
-                    continue
+            # Infer status from years
+            now_year = datetime.utcnow().year
+            status = "Planerat"
+            if start and int(start) <= now_year:
+                status = "Pågående"
+            if end and int(end) < now_year:
+                status = "Klart"
 
-                title = _build_title(entry, full_text)
-                cost_label, cost_msek = _extract_cost(full_text)
-                start, end = _extract_timeline(full_text)
-                location, region = _extract_location(full_text)
-                participants = _extract_participants(full_text)
-                project_type = _classify_type(full_text, source["default_type"])
-
-                # Geocode
-                coords = await geocode_location(location, region)
-                lat = coords[0] if coords else None
-                lng = coords[1] if coords else None
-
-                # Published date
-                try:
-                    pub = dateparser.parse(
-                        getattr(entry, "published", "") or str(datetime.utcnow())
-                    )
-                except Exception:
-                    pub = datetime.utcnow()
-
-                # Infer status from years
-                now_year = datetime.utcnow().year
-                status = "Planerat"
-                if start and int(start) <= now_year:
-                    status = "Pågående"
-                if end and int(end) < now_year:
-                    status = "Klart"
-
-                projects.append({
-                    "name": title,
-                    "type": project_type,
-                    "description": raw[:1000],
-                    "location": location,
-                    "region": region,
-                    "lat": lat,
-                    "lng": lng,
-                    "participants": participants,
-                    "estimated_cost": cost_label,
-                    "cost_value_msek": cost_msek,
-                    "timeline_start": start,
-                    "timeline_end": end,
-                    "status": status,
-                    "source_url": getattr(entry, "link", ""),
-                    "source_name": source["name"],
-                    "published_at": pub or datetime.utcnow(),
-                })
+            projects.append({
+                "name": title,
+                "type": project_type,
+                "description": raw[:1000],
+                "location": location,
+                "region": region,
+                "lat": lat,
+                "lng": lng,
+                "participants": participants,
+                "estimated_cost": cost_label,
+                "cost_value_msek": cost_msek,
+                "timeline_start": start,
+                "timeline_end": end,
+                "status": status,
+                "source_url": getattr(entry, "link", ""),
+                "source_name": source["name"],
+                "published_at": pub or datetime.utcnow(),
+            })
 
     return projects
