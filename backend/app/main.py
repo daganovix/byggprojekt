@@ -15,6 +15,8 @@ from app.database import init_db, get_db, SessionLocal
 from app.models import ProjectDB, ProjectOut, ProjectList, StatsOut
 from app.scrapers.feed_scraper import scrape_all_feeds
 from app.scrapers.permit_scraper import scrape_permits
+from app.scrapers.api_scraper import scrape_api_sources
+from app.scrapers.company_scraper import scrape_company_pages
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -23,24 +25,44 @@ scheduler = AsyncIOScheduler()
 
 
 async def run_scraper():
-    """Pull RSS feeds, extract projects, upsert into DB."""
+    """Pull all sources, extract projects, upsert into DB."""
     log.info("Starting scrape run…")
     try:
-        rss_projects = await scrape_all_feeds()
-        permit_projects = await scrape_permits()
-        projects = rss_projects + permit_projects
+        # Run RSS feeds and API sources concurrently; company pages separately (slower)
+        (rss_projects, api_projects), permit_projects = await asyncio.gather(
+            asyncio.gather(scrape_all_feeds(), scrape_api_sources()),
+            scrape_permits(),
+        )
+        company_projects = await scrape_company_pages()
+        projects = rss_projects + api_projects + permit_projects + company_projects
+        log.info(
+            "Scraped: %d RSS, %d API, %d permits, %d company",
+            len(rss_projects), len(api_projects),
+            len(permit_projects), len(company_projects),
+        )
         async with SessionLocal() as db:
+            new_count = 0
             for p in projects:
-                # Simple dedup by source_url
+                # Dedup by source_url (if present) or by (source_name, name)
                 if p["source_url"]:
                     existing = await db.scalar(
                         select(ProjectDB).where(ProjectDB.source_url == p["source_url"])
                     )
                     if existing:
                         continue
+                else:
+                    existing = await db.scalar(
+                        select(ProjectDB).where(
+                            ProjectDB.source_name == p["source_name"],
+                            ProjectDB.name == p["name"],
+                        )
+                    )
+                    if existing:
+                        continue
                 db.add(ProjectDB(**p))
+                new_count += 1
             await db.commit()
-        log.info("Scrape complete — %d new projects", len(projects))
+        log.info("Scrape complete — %d new projects added (total scraped: %d)", new_count, len(projects))
     except Exception as exc:
         log.exception("Scraper error: %s", exc)
 
