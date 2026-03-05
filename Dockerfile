@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Python dependencies and Playwright browser
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
-    && playwright install chromium --with-deps
+    && playwright install chromium
 
 # Copy backend source
 COPY backend/ .
