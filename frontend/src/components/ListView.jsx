@@ -139,7 +139,20 @@ export default function ListView({ projects, onSelect }) {
   const rumors    = projects.filter(p => !p.participants || p.participants.length === 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Summary */}
+      <div className="flex items-center gap-4 text-sm text-gray-600">
+        <span className="font-medium text-gray-800">{projects.length} projekt totalt</span>
+        <span className="text-gray-300">|</span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+          {confirmed.length} bekräftade
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+          {rumors.length} rykten
+        </span>
+      </div>
       {/* Bekräftade projekt */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-gray-50">
