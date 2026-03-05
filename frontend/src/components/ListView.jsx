@@ -25,7 +25,7 @@ const SORT_FIELDS = [
   { key: 'published_at', label: 'Datum' },
 ]
 
-export default function ListView({ projects, onSelect }) {
+function ProjectTable({ projects, onSelect, showParticipants, emptyText }) {
   const [sortKey, setSortKey] = useState('published_at')
   const [sortDir, setSortDir] = useState('desc')
 
@@ -47,67 +47,67 @@ export default function ListView({ projects, onSelect }) {
   const arrow = (key) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      <div className="overflow-x-auto project-list">
-        <table className="min-w-full text-sm">
-          <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 z-10">
-            <tr>
-              {SORT_FIELDS.map(f => (
-                <th
-                  key={f.key}
-                  onClick={() => toggleSort(f.key)}
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:text-gray-800 select-none whitespace-nowrap"
-                >
-                  {f.label}{arrow(f.key)}
-                </th>
-              ))}
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-                Deltagare
-              </th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {sorted.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-gray-400">
-                  Inga projekt matchar filtret.
-                </td>
-              </tr>
-            )}
-            {sorted.map(p => (
-              <tr
-                key={p.id}
-                className="hover:bg-blue-50 cursor-pointer transition"
-                onClick={() => onSelect(p)}
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-50 border-b border-gray-200">
+          <tr>
+            {SORT_FIELDS.map(f => (
+              <th
+                key={f.key}
+                onClick={() => toggleSort(f.key)}
+                className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:text-gray-800 select-none whitespace-nowrap"
               >
-                <td className="px-4 py-3 font-medium text-gray-900 max-w-xs">
-                  <div className="truncate" title={p.name}>{p.name}</div>
-                  <div className="text-xs text-gray-400 truncate">{p.source_name}</div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TYPE_PILL[p.type] || 'bg-gray-100 text-gray-600'}`}>
-                    {p.type}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{p.region || '—'}</td>
-                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                  {p.estimated_cost || '—'}
-                </td>
-                <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                  {p.timeline_start
-                    ? `${p.timeline_start}${p.timeline_end && p.timeline_end !== p.timeline_start ? `–${p.timeline_end}` : ''}`
-                    : '—'}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[p.status] || 'bg-gray-100 text-gray-600'}`}>
-                    {p.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                  {new Date(p.published_at).toLocaleDateString('sv-SE')}
-                </td>
-                <td className="px-4 py-3 text-gray-600 max-w-xs">
+                {f.label}{arrow(f.key)}
+              </th>
+            ))}
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+              {showParticipants ? 'Deltagare' : 'Källa'}
+            </th>
+            <th className="px-4 py-3" />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {sorted.length === 0 && (
+            <tr>
+              <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                {emptyText}
+              </td>
+            </tr>
+          )}
+          {sorted.map(p => (
+            <tr
+              key={p.id}
+              className="hover:bg-blue-50 cursor-pointer transition"
+              onClick={() => onSelect(p)}
+            >
+              <td className="px-4 py-3 font-medium text-gray-900 max-w-xs">
+                <div className="truncate" title={p.name}>{p.name}</div>
+                <div className="text-xs text-gray-400 truncate">{p.source_name}</div>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TYPE_PILL[p.type] || 'bg-gray-100 text-gray-600'}`}>
+                  {p.type}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{p.region || '—'}</td>
+              <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                {p.estimated_cost || '—'}
+              </td>
+              <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                {p.timeline_start
+                  ? `${p.timeline_start}${p.timeline_end && p.timeline_end !== p.timeline_start ? `–${p.timeline_end}` : ''}`
+                  : '—'}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[p.status] || 'bg-gray-100 text-gray-600'}`}>
+                  {p.status}
+                </span>
+              </td>
+              <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                {new Date(p.published_at).toLocaleDateString('sv-SE')}
+              </td>
+              <td className="px-4 py-3 text-gray-600 max-w-xs">
+                {showParticipants ? (
                   <div className="text-xs space-y-0.5">
                     {(p.participants || []).slice(0, 2).map((pt, i) => (
                       <div key={i} className="truncate">
@@ -119,17 +119,66 @@ export default function ListView({ projects, onSelect }) {
                       <div className="text-gray-400">+{p.participants.length - 2} till</div>
                     )}
                   </div>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-blue-500 hover:text-blue-700 text-xs">→</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                ) : (
+                  <span className="text-xs text-gray-400">{p.source_name}</span>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                <span className="text-blue-500 hover:text-blue-700 text-xs">→</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+export default function ListView({ projects, onSelect }) {
+  const confirmed = projects.filter(p => p.participants && p.participants.length > 0)
+  const rumors    = projects.filter(p => !p.participants || p.participants.length === 0)
+
+  return (
+    <div className="space-y-6">
+      {/* Bekräftade projekt */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-gray-50">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <h2 className="font-semibold text-gray-800 text-sm">Bekräftade projekt</h2>
+          <span className="ml-auto text-xs text-gray-400 font-medium">{confirmed.length} projekt</span>
+        </div>
+        <ProjectTable
+          projects={confirmed}
+          onSelect={onSelect}
+          showParticipants={true}
+          emptyText="Inga projekt med bekräftade deltagare matchar filtret."
+        />
+        {confirmed.length > 0 && (
+          <div className="px-4 py-2 text-xs text-gray-400 border-t border-gray-100">
+            Klicka på en rad för detaljer
+          </div>
+        )}
       </div>
-      <div className="px-4 py-2 text-xs text-gray-400 border-t border-gray-100">
-        Visar {sorted.length} projekt — klicka på en rad för detaljer
+
+      {/* Projektrykten */}
+      <div className="bg-white rounded-lg shadow-sm border border-amber-200 overflow-hidden">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-amber-200 bg-amber-50">
+          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          <h2 className="font-semibold text-amber-900 text-sm">Projektrykten</h2>
+          <span className="text-xs text-amber-600">Inga bekräftade deltagare ännu</span>
+          <span className="ml-auto text-xs text-amber-600 font-medium">{rumors.length} projekt</span>
+        </div>
+        <ProjectTable
+          projects={rumors}
+          onSelect={onSelect}
+          showParticipants={false}
+          emptyText="Inga projektrykten matchar filtret."
+        />
+        {rumors.length > 0 && (
+          <div className="px-4 py-2 text-xs text-amber-600/70 border-t border-amber-100 bg-amber-50/30">
+            Klicka på ett projekt för att se AI-prediktion om troliga aktörer
+          </div>
+        )}
       </div>
     </div>
   )
