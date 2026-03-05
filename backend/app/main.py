@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -74,7 +75,6 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(run_scraper, "interval", hours=2, id="scraper")
     scheduler.start()
     # Run once on startup (non-blocking)
-    import asyncio
     asyncio.create_task(run_scraper())
     yield
     scheduler.shutdown()
@@ -163,7 +163,6 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
 @app.post("/api/refresh")
 async def trigger_refresh():
     """Manually trigger a scrape run (runs in background)."""
-    import asyncio
     asyncio.create_task(run_scraper())
     return {"message": "Scrape started"}
 
