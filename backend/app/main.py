@@ -1,13 +1,16 @@
 import asyncio
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
+import anthropic
 from fastapi import FastAPI, Depends, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -324,6 +327,69 @@ async def get_project_predictions(project_id: int, db: AsyncSession = Depends(ge
         "predictions": predictions,
         "missing_roles": sorted(missing_roles),
     }
+
+
+class CoachRequest(BaseModel):
+    message: str
+    history: list[dict] = []
+
+
+@app.post("/api/projects/{project_id}/coach")
+async def sales_coach(project_id: int, body: CoachRequest, db: AsyncSession = Depends(get_db)):
+    row = await db.get(ProjectDB, project_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    p = _to_out(row)
+
+    participants_text = "\n".join(
+        f"- {pt['name']} ({pt['role'] or 'okänd roll'})"
+        for pt in (p.participants or [])
+    ) or "Inga bekräftade deltagare"
+
+    timeline = ""
+    if p.timeline_start:
+        timeline = p.timeline_start
+        if p.timeline_end and p.timeline_end != p.timeline_start:
+            timeline += f" – {p.timeline_end}"
+
+    system_prompt = f"""Du är en erfaren B2B-säljcoach specialiserad på den svenska byggbranschen. Du hjälper säljare att vinna uppdrag, bygga relationer med rätt beslutsfattare och skapa konkreta nästa steg.
+
+PROJEKTINFORMATION:
+Namn: {p.name}
+Typ: {p.type}
+Status: {p.status}
+Plats: {p.location}{f', {p.region}' if p.region and p.region != p.location else ''}
+Beräknad kostnad: {p.estimated_cost or 'Okänd'}
+Tidplan: {timeline or 'Okänd'}
+Beskrivning: {p.description or 'Ingen beskrivning tillgänglig'}
+
+BEKRÄFTADE DELTAGARE:
+{participants_text}
+
+COACHING-PRINCIPER:
+- Ge konkreta, actionabla råd – inga generella platityder
+- Prioritera alltid nästa steg tydligt
+- Anpassa approach efter deltagarnas roller (beställare vs. entreprenör vs. arkitekt)
+- Hjälp med formuleringar och konkreta mail-/samtalsmanus vid behov
+- Svara på svenska, kortfattat och direkt"""
+
+    messages = body.history + [{"role": "user", "content": body.message}]
+
+    ai_client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+
+    async def stream():
+        async with ai_client.messages.stream(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            system=system_prompt,
+            messages=messages,
+        ) as stream:
+            async for text in stream.text_stream:
+                yield f"data: {json.dumps({'text': text})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
 
 
 @app.get("/api/filters")

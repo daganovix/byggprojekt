@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
@@ -62,6 +62,197 @@ function IconLayers() {
       <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/>
       <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>
     </svg>
+  )
+}
+
+function IconSparkles() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+      <path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>
+    </svg>
+  )
+}
+
+function IconSend() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <path d="m22 2-7 20-4-9-9-4Z"/>
+      <path d="M22 2 11 13"/>
+    </svg>
+  )
+}
+
+// ── AI Sales Coach ────────────────────────────────────────────────────────────
+
+const SUGGESTED_PROMPTS = [
+  'Vem kontaktar jag först och varför?',
+  'Skriv ett prospekteringsmail',
+  'Vilken vinkel har vi störst chans med?',
+  'Vilka invändningar kan jag möta?',
+  'Hur lägger jag upp ett första samtal?',
+]
+
+function SalesCoach({ project }) {
+  const [open, setOpen] = useState(false)
+  const [messages, setMessages] = useState([])
+  const [input, setInput] = useState('')
+  const [streaming, setStreaming] = useState(false)
+  const bottomRef = useRef(null)
+
+  useEffect(() => {
+    if (open && messages.length === 0) {
+      sendMessage('Ge mig en snabb situationsanalys av projektet och föreslå de tre viktigaste åtgärderna.')
+    }
+  }, [open])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  async function sendMessage(text) {
+    if (streaming) return
+    const userMsg = text || input.trim()
+    if (!userMsg) return
+    setInput('')
+
+    const history = messages.map(m => ({ role: m.role, content: m.content }))
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: userMsg },
+      { role: 'assistant', content: '' },
+    ])
+    setStreaming(true)
+
+    try {
+      const res = await fetch(`/api/projects/${project.id}/coach`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg, history }),
+      })
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let assistantText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+          if (data === '[DONE]') break
+          try {
+            assistantText += JSON.parse(data).text
+            setMessages(prev => {
+              const updated = [...prev]
+              updated[updated.length - 1] = { role: 'assistant', content: assistantText }
+              return updated
+            })
+          } catch {}
+        }
+      }
+    } finally {
+      setStreaming(false)
+    }
+  }
+
+  return (
+    <div className="border-t border-gray-100 pt-4">
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl font-semibold text-white text-sm shadow-lg shadow-indigo-200 transition-all hover:shadow-indigo-300 hover:scale-[1.01] active:scale-[0.99]"
+          style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)' }}
+        >
+          <IconSparkles />
+          AI Säljcoach – få coachning baserat på detta projekt
+        </button>
+      ) : (
+        <div className="rounded-xl border border-indigo-100 overflow-hidden shadow-sm">
+          {/* Coach header */}
+          <div
+            className="flex items-center justify-between px-4 py-3"
+            style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)' }}
+          >
+            <div className="flex items-center gap-2 text-white font-semibold text-sm">
+              <IconSparkles />
+              AI Säljcoach
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              className="text-white/70 hover:text-white text-xl leading-none"
+              aria-label="Stäng"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div className="bg-gray-50 px-4 py-3 space-y-3 max-h-80 overflow-y-auto">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap ${
+                    m.role === 'user'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white border border-gray-200 text-gray-800'
+                  }`}
+                >
+                  {m.content || (
+                    <span className="inline-flex gap-1 opacity-60">
+                      <span className="animate-bounce" style={{ animationDelay: '0ms' }}>·</span>
+                      <span className="animate-bounce" style={{ animationDelay: '150ms' }}>·</span>
+                      <span className="animate-bounce" style={{ animationDelay: '300ms' }}>·</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Suggested prompts */}
+          {messages.length <= 2 && !streaming && (
+            <div className="bg-gray-50 px-4 pb-2 flex flex-wrap gap-1.5">
+              {SUGGESTED_PROMPTS.map(p => (
+                <button
+                  key={p}
+                  onClick={() => sendMessage(p)}
+                  className="text-xs px-2.5 py-1 rounded-full border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 transition-colors"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input */}
+          <div className="border-t border-gray-100 bg-white flex items-center gap-2 px-3 py-2">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+              placeholder="Ställ en fråga om projektet…"
+              disabled={streaming}
+              className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400 disabled:opacity-50"
+            />
+            <button
+              onClick={() => sendMessage()}
+              disabled={streaming || !input.trim()}
+              className="shrink-0 p-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+            >
+              <IconSend />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -477,6 +668,9 @@ export default function ProjectModal({ project: p, onClose }) {
               projectLocation={p.location || p.region || ''}
             />
           </div>
+
+          {/* AI Sales Coach */}
+          <SalesCoach project={p} />
 
           {/* Recommended actions */}
           <div className="border-t border-gray-100 pt-4">
