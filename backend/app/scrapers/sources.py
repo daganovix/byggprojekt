@@ -66,13 +66,8 @@ RSS_SOURCES = [
         "default_type": "Offentligt",
     },
     {
-        "name": "Infrastruktur i Fokus",
-        "url": "https://www.infrastrukturifokus.se/feed/",
-        "default_type": "Infrastruktur",
-    },
-    {
-        "name": "Energi & Hållbart Byggande",
-        "url": "https://www.energiochklimat.se/feed/",
+        "name": "Energifokus",
+        "url": "https://energifokus.se/feed/",
         "default_type": "Industri",
     },
     # ── Municipality news feeds (include planning/permit announcements) ────────

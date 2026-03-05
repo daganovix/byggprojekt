@@ -51,11 +51,19 @@ export default function App() {
   const triggerRefresh = async () => {
     setRefreshing(true)
     try {
+      const before = projects.length
       await axios.post(`${API}/refresh`)
-      setTimeout(() => {
-        fetchProjects()
-        setRefreshing(false)
-      }, 5000)
+      // Poll until project count increases or 3 minutes pass
+      const deadline = Date.now() + 3 * 60 * 1000
+      const poll = async () => {
+        if (Date.now() > deadline) { fetchProjects(); setRefreshing(false); return }
+        try {
+          const res = await axios.get(`${API}/stats`)
+          if (res.data.total > before) { fetchProjects(); setRefreshing(false); return }
+        } catch { /* ignore */ }
+        setTimeout(poll, 5000)
+      }
+      setTimeout(poll, 5000)
     } catch {
       setRefreshing(false)
     }
