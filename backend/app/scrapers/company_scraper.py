@@ -269,37 +269,42 @@ async def _enrich_from_detail(
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
-async def scrape_company_pages() -> list[dict]:
-    all_projects: list[dict] = []
+async def _scrape_one_company(client: httpx.AsyncClient, target: dict) -> list[dict]:
+    try:
+        resp = await client.get(target["url"])
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "lxml")
+        items = _extract_cards(soup, target)
+        log.info("Company listing %s — %d cards found", target["name"], len(items))
 
+        projects: list[dict] = []
+        for detail_url, partial in items:
+            project = await _enrich_from_detail(client, detail_url, partial)
+            if not project:
+                continue
+            loc = project.get("location") or project.get("region") or ""
+            if loc:
+                coords = await geocode_location(loc, project.get("region", ""))
+                if coords:
+                    project["lat"], project["lng"] = coords
+            projects.append(project)
+        return projects
+    except Exception as exc:
+        log.warning("Company scrape failed for %s: %s", target["name"], exc)
+        return []
+
+
+async def scrape_company_pages() -> list[dict]:
     async with httpx.AsyncClient(
         headers=_HEADERS, timeout=20, follow_redirects=True,
     ) as client:
-        for target in COMPANY_TARGETS:
-            try:
-                resp = await client.get(target["url"])
-                resp.raise_for_status()
-                soup = BeautifulSoup(resp.text, "lxml")
-                items = _extract_cards(soup, target)
-                log.info("Company listing %s — %d cards found", target["name"], len(items))
-
-                for detail_url, partial in items:
-                    project = await _enrich_from_detail(client, detail_url, partial)
-                    if not project:
-                        continue
-
-                    # Geocode
-                    loc = project.get("location") or project.get("region") or ""
-                    if loc:
-                        coords = await geocode_location(loc, project.get("region", ""))
-                        if coords:
-                            project["lat"], project["lng"] = coords
-
-                    all_projects.append(project)
-
-            except Exception as exc:
-                log.warning("Company scrape failed for %s: %s", target["name"], exc)
-                continue
-
+        results = await asyncio.gather(
+            *[_scrape_one_company(client, t) for t in COMPANY_TARGETS],
+            return_exceptions=True,
+        )
+    all_projects: list[dict] = []
+    for r in results:
+        if isinstance(r, list):
+            all_projects.extend(r)
     log.info("Company scraper total — %d projects", len(all_projects))
     return all_projects

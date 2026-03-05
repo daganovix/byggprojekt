@@ -25,45 +25,51 @@ log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
+async def _save_projects(projects: list[dict]) -> int:
+    """Upsert projects into DB. Returns count of new rows added."""
+    async with SessionLocal() as db:
+        new_count = 0
+        for p in projects:
+            if p["source_url"]:
+                existing = await db.scalar(
+                    select(ProjectDB).where(ProjectDB.source_url == p["source_url"])
+                )
+            else:
+                existing = await db.scalar(
+                    select(ProjectDB).where(
+                        ProjectDB.source_name == p["source_name"],
+                        ProjectDB.name == p["name"],
+                    )
+                )
+            if existing:
+                continue
+            db.add(ProjectDB(**p))
+            new_count += 1
+        await db.commit()
+    return new_count
+
+
 async def run_scraper():
     """Pull all sources, extract projects, upsert into DB."""
     log.info("Starting scrape run…")
     try:
-        # Run RSS feeds and API sources concurrently; company pages separately (slower)
+        # Phase 1: fast sources in parallel — save as soon as done so the UI
+        # updates within ~60 s without waiting for the slower company scraper.
         (rss_projects, api_projects), permit_projects = await asyncio.gather(
             asyncio.gather(scrape_all_feeds(), scrape_api_sources()),
             scrape_permits(),
         )
-        company_projects = await scrape_company_pages()
-        projects = rss_projects + api_projects + permit_projects + company_projects
+        fast_new = await _save_projects(rss_projects + api_projects + permit_projects)
         log.info(
-            "Scraped: %d RSS, %d API, %d permits, %d company",
-            len(rss_projects), len(api_projects),
-            len(permit_projects), len(company_projects),
+            "Phase 1 done — %d RSS, %d API, %d permits → %d new saved",
+            len(rss_projects), len(api_projects), len(permit_projects), fast_new,
         )
-        async with SessionLocal() as db:
-            new_count = 0
-            for p in projects:
-                # Dedup by source_url (if present) or by (source_name, name)
-                if p["source_url"]:
-                    existing = await db.scalar(
-                        select(ProjectDB).where(ProjectDB.source_url == p["source_url"])
-                    )
-                    if existing:
-                        continue
-                else:
-                    existing = await db.scalar(
-                        select(ProjectDB).where(
-                            ProjectDB.source_name == p["source_name"],
-                            ProjectDB.name == p["name"],
-                        )
-                    )
-                    if existing:
-                        continue
-                db.add(ProjectDB(**p))
-                new_count += 1
-            await db.commit()
-        log.info("Scrape complete — %d new projects added (total scraped: %d)", new_count, len(projects))
+
+        # Phase 2: company pages (slower — JS-rendered sites return 0 cards quickly;
+        # server-rendered ones add real projects).
+        company_projects = await scrape_company_pages()
+        company_new = await _save_projects(company_projects)
+        log.info("Phase 2 done — %d company → %d new saved", len(company_projects), company_new)
     except Exception as exc:
         log.exception("Scraper error: %s", exc)
 
