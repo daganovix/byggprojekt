@@ -5,34 +5,9 @@ Each entry describes a feed and how to classify its projects.
 
 RSS_SOURCES = [
     {
-        "name": "Byggindustrin",
-        "url": "https://www.byggindustrin.se/feed/",
-        "default_type": "Övrigt",
-    },
-    {
-        "name": "Trafikverket",
-        "url": "https://www.trafikverket.se/om-oss/press/pressmeddelanden/rss/",
-        "default_type": "Infrastruktur",
-    },
-    {
-        "name": "Fastighetsnytt",
-        "url": "https://fastighetsnytt.se/feed/",
-        "default_type": "Kommersiellt",
-    },
-    {
         "name": "Byggnyheter",
         "url": "https://byggnyheter.se/rss.xml",
         "default_type": "Övrigt",
-    },
-    {
-        "name": "Upphandlingsmyndigheten",
-        "url": "https://www.upphandlingsmyndigheten.se/rss/nyheter",
-        "default_type": "Offentligt",
-    },
-    {
-        "name": "Riksbyggen",
-        "url": "https://www.riksbyggen.se/feed/",
-        "default_type": "Bostäder",
     },
     # ── Additional sources ────────────────────────────────────────────────────
     {

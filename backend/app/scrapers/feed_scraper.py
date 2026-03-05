@@ -39,6 +39,22 @@ _CITY_RE = re.compile(
     r"\b(?:i|vid|utanför|nära|intill)\s+([A-ZÅÄÖ][a-zåäö]+(?:\s[A-ZÅÄÖ][a-zåäö]+)?)\b"
 )
 
+# Known Swedish cities for direct mention detection (fallback)
+_SWEDISH_CITIES = [
+    "Stockholm", "Göteborg", "Malmö", "Uppsala", "Västerås", "Örebro",
+    "Linköping", "Helsingborg", "Jönköping", "Norrköping", "Lund", "Umeå",
+    "Gävle", "Borås", "Södertälje", "Eskilstuna", "Halmstad", "Växjö",
+    "Sundsvall", "Luleå", "Kristianstad", "Kalmar", "Falun", "Karlstad",
+    "Östersund", "Skövde", "Trollhättan", "Kiruna", "Solna", "Nacka",
+    "Huddinge", "Haninge", "Täby", "Järfälla", "Botkyrka", "Upplands Väsby",
+    "Danderyd", "Lidingö", "Sigtuna", "Norrtälje", "Nyköping", "Strängnäs",
+    "Västervik", "Visby", "Karlskrona", "Landskrona", "Trelleborg", "Ystad",
+    "Mölndal", "Kungsbacka", "Varberg", "Uddevalla", "Skara", "Lidköping",
+    "Karlskoga", "Värnamo", "Jönköping", "Eksjö", "Nässjö", "Vetlanda",
+    "Örnsköldsvik", "Härnösand", "Timrå", "Sollefteå", "Lycksele", "Skellefteå",
+    "Piteå", "Boden", "Gällivare", "Haparanda",
+]
+
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -87,13 +103,19 @@ def _extract_timeline(text: str) -> tuple[str, str]:
 
 def _extract_location(text: str) -> tuple[str, str]:
     """Return (city, region) — region is the matched Swedish region."""
-    # First look for explicit city mentions
+    # 1. Explicit preposition + city: "i Stockholm", "vid Göteborg"
     for match in _CITY_RE.finditer(text):
         city = match.group(1)
         region = _match_region(city) or _match_region(text)
         return city, region or ""
 
-    # Fall back to region scan
+    # 2. Direct city name mention (no preposition required)
+    for city in _SWEDISH_CITIES:
+        if re.search(rf"\b{re.escape(city)}\b", text, re.IGNORECASE):
+            region = _match_region(city) or _match_region(text)
+            return city, region or ""
+
+    # 3. Fall back to region scan
     region = _match_region(text)
     return region, region
 
