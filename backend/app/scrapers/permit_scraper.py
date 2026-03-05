@@ -32,31 +32,31 @@ _HEADERS = {
 # ── Municipality target list ──────────────────────────────────────────────────
 
 MUNICIPALITY_TARGETS = [
-    # Stockholm – actual weekly permit decision notice list
+    # Stockholm – city planning news (guaranteed to exist)
     {
-        "name": "Stockholms stad – Kungörelser",
-        "url": "https://www.stockholm.se/OmStockholm/Stadsbyggnadskontoret/Kungorelser/",
-        "parser": "parse_stockholm",
+        "name": "Stockholms stad – Stadsutveckling",
+        "url": "https://www.stockholm.se/stadsutveckling/",
+        "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Stockholm",
     },
-    # Göteborg – stadsbyggnad news (includes permit decisions)
+    # Göteborg – generic news (nyheter/ proved reachable via redirect)
     {
-        "name": "Göteborgs stad – Stadsbyggnad",
-        "url": "https://www.goteborg.se/nyheter/stadsbyggnad/",
+        "name": "Göteborgs stad – Nyheter",
+        "url": "https://goteborg.se/nyheter/",
         "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Västra Götaland",
     },
-    # Malmö – planning and building permit section
+    # Malmö – main news section
     {
-        "name": "Malmö stad – Stadsbyggnad",
-        "url": "https://malmo.se/Stadsbyggnad.html",
+        "name": "Malmö stad – Nyheter",
+        "url": "https://malmo.se/nyheter/",
         "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Skåne",
     },
-    # Uppsala – nybyggnad and permit page
+    # Uppsala – building news (confirmed 200 OK)
     {
         "name": "Uppsala kommun – Bygg och plan",
         "url": "https://www.uppsala.se/nyheter/?category=bygg",
@@ -64,23 +64,23 @@ MUNICIPALITY_TARGETS = [
         "default_type": "Offentligt",
         "region": "Uppsala",
     },
-    # Linköping – building permit news
+    # Linköping – news
     {
-        "name": "Linköpings kommun – Bygglov",
-        "url": "https://www.linkoping.se/bo-bygga-miljo/bygglov/",
+        "name": "Linköpings kommun – Nyheter",
+        "url": "https://www.linkoping.se/nyheter/",
         "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Östergötland",
     },
-    # Västerås – building permits
+    # Västerås – news
     {
-        "name": "Västerås stad – Bygglov",
-        "url": "https://www.vasteras.se/bygga-bo-miljo/bygglov-och-anmalan.html",
+        "name": "Västerås stad – Nyheter",
+        "url": "https://www.vasteras.se/nyheter/",
         "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Västmanland",
     },
-    # Post- och Inrikes Tidningar – official gazette, plan/building category
+    # Post- och Inrikes Tidningar – official gazette, plan/building categories
     {
         "name": "Post- och Inrikes Tidningar – Plan & Bygg",
         "url": "https://poit.bolagsverket.se/poit/PublikPublicering.do?kategoriId=44",
@@ -280,32 +280,80 @@ def parse_decision_list(soup: BeautifulSoup, target: dict) -> list[dict]:
 
 
 def parse_poit(soup: BeautifulSoup, target: dict) -> list[dict]:
-    """Parse Post- och Inrikes Tidningar announcement list."""
+    """
+    Parse Post- och Inrikes Tidningar announcement list.
+
+    PoIT is a Java/.do app whose exact HTML structure has varied; try every
+    reasonable layout (tables, lists, any anchor inside a result container).
+    """
     projects = []
-    for row in soup.select("tr.publikation, table.resultat tr"):
-        cells = row.find_all("td")
-        if len(cells) < 2:
-            continue
-        title = cells[0].get_text(strip=True)
+    base = "https://poit.bolagsverket.se"
+
+    def _add(title: str, description: str, url: str) -> None:
         if not title or len(title) < 5:
-            continue
-        link_tag = cells[0].find("a", href=True)
-        url = link_tag["href"] if link_tag else target["url"]
-        if url.startswith("/"):
-            url = "https://poit.bolagsverket.se" + url
-        description = " ".join(c.get_text(strip=True) for c in cells[1:])
+            return
         region = _match_region(f"{title} {description}")
-        location = region
         projects.append(_make_project(
             title=title,
             description=description,
-            location=location,
+            location=region,
             region=region,
             source_url=url,
             source_name=target["name"],
             default_type=target["default_type"],
         ))
-    return projects
+
+    # Pass 1 – any <table> on the page
+    for table in soup.find_all("table"):
+        for row in table.find_all("tr"):
+            cells = row.find_all("td")
+            if len(cells) < 2:
+                continue
+            link = row.find("a", href=True)
+            url = (link["href"] if link else target["url"])
+            if url.startswith("/"):
+                url = base + url
+            title = (link.get_text(strip=True) if link
+                     else cells[0].get_text(strip=True))
+            desc = " ".join(c.get_text(strip=True) for c in cells
+                            if c != (link.parent if link else None))
+            _add(title, desc, url)
+
+    # Pass 2 – <li> or <div> items that contain a link  (common SPA/portal output)
+    if not projects:
+        for container_sel in ("li", "div.result", "div.item", "div.row"):
+            for el in soup.select(container_sel):
+                link = el.find("a", href=True)
+                if not link:
+                    continue
+                href = link["href"]
+                url = href if href.startswith("http") else base + href
+                title = link.get_text(strip=True)
+                desc = el.get_text(strip=True)
+                _add(title, desc, url)
+            if projects:
+                break
+
+    # Pass 3 – last resort: every outbound link that goes to a publication detail
+    if not projects:
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if "publikation" not in href.lower() and "poit" not in href.lower():
+                continue
+            url = href if href.startswith("http") else base + href
+            title = a.get_text(strip=True)
+            _add(title, title, url)
+
+    if not projects:
+        page_title = soup.title.get_text(strip=True) if soup.title else "N/A"
+        # Log the first 400 chars of body text to diagnose structure
+        body_text = soup.get_text(separator=" ", strip=True)[:400]
+        log.warning(
+            "PoIT 0 items from %s | page title: %r | body snippet: %r",
+            target["url"], page_title, body_text,
+        )
+
+    return projects[:30]
 
 
 def parse_generic(soup: BeautifulSoup, target: dict) -> list[dict]:

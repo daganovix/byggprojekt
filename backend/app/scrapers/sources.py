@@ -26,24 +26,25 @@ RSS_SOURCES = [
         "default_type": "Kommersiellt",
     },
     # ── Construction company press releases (Mynewsdesk) ────────────────────────
+    # Mynewsdesk current RSS format: /feed/rss  (not .rss extension)
     {
         "name": "NCC – Pressmeddelanden",
-        "url": "https://www.mynewsdesk.com/se/ncc/pressreleases.rss",
+        "url": "https://www.mynewsdesk.com/se/ncc/pressreleases/feed/rss",
         "default_type": "Övrigt",
     },
     {
         "name": "Skanska – Pressmeddelanden",
-        "url": "https://www.mynewsdesk.com/se/skanska/pressreleases.rss",
+        "url": "https://www.mynewsdesk.com/se/skanska/pressreleases/feed/rss",
         "default_type": "Övrigt",
     },
     {
         "name": "Peab – Pressmeddelanden",
-        "url": "https://www.mynewsdesk.com/se/peab/pressreleases.rss",
+        "url": "https://www.mynewsdesk.com/se/peab/pressreleases/feed/rss",
         "default_type": "Övrigt",
     },
     {
         "name": "JM – Pressmeddelanden",
-        "url": "https://www.mynewsdesk.com/se/jm_ab/pressreleases.rss",
+        "url": "https://www.mynewsdesk.com/se/jm/pressreleases/feed/rss",
         "default_type": "Bostäder",
     },
     # ── Municipality planning news ───────────────────────────────────────────────

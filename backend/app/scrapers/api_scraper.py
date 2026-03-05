@@ -158,25 +158,28 @@ async def scrape_trafikverket() -> list[dict]:
 # ── CKAN open data (Göteborg, Stockholm building permits) ─────────────────────
 
 _CKAN_SOURCES = [
+    # Göteborg – their CKAN open-data portal
     {
         "name": "Göteborg Open Data – Bygglov",
-        "base_url": "https://opendata.goteborg.se",
+        "base_url": "https://data.goteborg.se",
         "search_queries": ["bygglov", "beviljade bygglov", "plan och bygg", "nybyggnad"],
         "region": "Västra Götaland",
         "default_type": "Offentligt",
     },
+    # Stockholm – their open-data portal (original confirmed hostname)
     {
         "name": "Stockholm Open Data – Bygglov",
-        "base_url": "https://opendata.stockholm.se",
+        "base_url": "https://dataportalen.stockholm.se",
         "search_queries": ["bygglov", "beviljade bygglov", "plan", "nybyggnad"],
         "region": "Stockholm",
         "default_type": "Offentligt",
     },
+    # Swedish national open-data portal (aggregates all municipalities)
     {
-        "name": "Malmö Open Data – Bygglov",
-        "base_url": "https://dataportalen.malmo.se",
-        "search_queries": ["bygglov", "detaljplan", "nybyggnad"],
-        "region": "Skåne",
+        "name": "Sveriges dataportal – Bygglov",
+        "base_url": "https://www.dataportal.se",
+        "search_queries": ["bygglov", "bygglovsstatistik", "beviljade bygglov"],
+        "region": "",
         "default_type": "Offentligt",
     },
 ]
