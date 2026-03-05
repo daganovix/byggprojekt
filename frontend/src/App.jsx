@@ -69,8 +69,6 @@ export default function App() {
     }
   }
 
-  const mappableProjects = projects.filter(p => p.lat && p.lng)
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
@@ -132,8 +130,7 @@ export default function App() {
           </div>
         ) : view === 'map' ? (
           <MapView
-            projects={mappableProjects}
-            allProjects={projects}
+            projects={projects}
             onSelect={setSelectedProject}
           />
         ) : (
