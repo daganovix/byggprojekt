@@ -173,6 +173,159 @@ async def trigger_refresh():
     return {"message": "Scrape started"}
 
 
+# Domain knowledge: typical (role → companies) per project type.
+# Based on Swedish construction industry patterns:
+# - Beställare/Byggherre: municipalities, public bodies, property companies
+# - Totalentreprenör: Skanska, NCC, PEAB, Veidekke, Serneke
+# - Arkitekt: White Arkitekter, Sweco Architects, Wingårdhs, Tengbom
+# - Konstruktör/teknisk konsult: Sweco, WSP, Ramboll, Tyréns, AFRY
+_ROLE_PRIORS: dict[str, list[dict]] = {
+    "Infrastruktur": [
+        {"role": "Beställare",        "companies": ["Trafikverket", "Jernhusen", "Stockholms stad", "Göteborgs stad", "Malmö stad"]},
+        {"role": "Totalentreprenör",  "companies": ["Skanska", "NCC", "PEAB", "Veidekke", "Serneke"]},
+        {"role": "Konstruktör",       "companies": ["Sweco", "WSP", "Ramboll", "Tyréns", "AFRY"]},
+        {"role": "Projektledare",     "companies": ["Sweco", "WSP", "Tyréns"]},
+    ],
+    "Bostäder": [
+        {"role": "Byggherre",         "companies": ["JM", "Riksbyggen", "HSB", "Bonava", "Wallenstam", "Besqab", "Magnolia"]},
+        {"role": "Totalentreprenör",  "companies": ["Skanska", "NCC", "PEAB", "Veidekke", "Serneke"]},
+        {"role": "Arkitekt",          "companies": ["White Arkitekter", "Sweco Architects", "Liljewall", "Tengbom", "Fojab"]},
+        {"role": "Konstruktör",       "companies": ["Sweco", "WSP", "Ramboll", "Tyréns"]},
+    ],
+    "Kommersiellt": [
+        {"role": "Fastighetsägare",   "companies": ["Fabege", "Castellum", "Vasakronan", "Atrium Ljungberg", "Kungsleden", "Wihlborgs"]},
+        {"role": "Byggherre",         "companies": ["Fabege", "Castellum", "Vasakronan", "Skanska", "NCC"]},
+        {"role": "Totalentreprenör",  "companies": ["Skanska", "NCC", "PEAB", "Serneke"]},
+        {"role": "Arkitekt",          "companies": ["White Arkitekter", "Wingårdhs", "Sweco Architects", "Tengbom"]},
+    ],
+    "Offentligt": [
+        {"role": "Beställare",        "companies": ["Akademiska Hus", "Stockholms stad", "Göteborgs stad", "Malmö stad", "Region Stockholm"]},
+        {"role": "Byggherre",         "companies": ["Akademiska Hus", "Stockholms stad", "Region Stockholm"]},
+        {"role": "Totalentreprenör",  "companies": ["Skanska", "NCC", "PEAB", "Veidekke"]},
+        {"role": "Arkitekt",          "companies": ["White Arkitekter", "Sweco Architects", "Tengbom", "Wingårdhs"]},
+    ],
+    "Industri": [
+        {"role": "Beställare",        "companies": ["Trafikverket", "Stockholms stad", "Göteborgs stad"]},
+        {"role": "Totalentreprenör",  "companies": ["Skanska", "NCC", "PEAB", "Serneke"]},
+        {"role": "Konstruktör",       "companies": ["Sweco", "WSP", "Ramboll", "Tyréns", "AFRY"]},
+    ],
+    "Övrigt": [
+        {"role": "Byggherre",         "companies": ["Skanska", "NCC", "PEAB", "JM"]},
+        {"role": "Totalentreprenör",  "companies": ["Skanska", "NCC", "PEAB", "Veidekke"]},
+    ],
+}
+
+_TYPICAL_ROLES: dict[str, list[str]] = {
+    "Infrastruktur": ["Beställare", "Totalentreprenör", "Konstruktör"],
+    "Bostäder":      ["Byggherre", "Totalentreprenör", "Arkitekt", "Konstruktör"],
+    "Kommersiellt":  ["Byggherre", "Totalentreprenör", "Arkitekt", "Fastighetsägare"],
+    "Offentligt":    ["Beställare", "Totalentreprenör", "Arkitekt"],
+    "Industri":      ["Beställare", "Totalentreprenör", "Konstruktör"],
+    "Övrigt":        ["Byggherre", "Totalentreprenör"],
+}
+
+
+@app.get("/api/projects/{project_id}/predictions")
+async def get_project_predictions(project_id: int, db: AsyncSession = Depends(get_db)):
+    """Return likely unconfirmed participants based on historical co-occurrence
+    in similar projects (same type) and domain knowledge priors."""
+    project = await db.get(ProjectDB, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    known_names: set[str] = {
+        p["name"] for p in (project.participants or []) if p.get("name")
+    }
+    current_roles: set[str] = {
+        p.get("role", "") for p in (project.participants or []) if p.get("role")
+    }
+
+    # ── Step 1: Co-occurrence from historical data ────────────────────────────
+    similar_rows = (
+        await db.scalars(
+            select(ProjectDB).where(
+                ProjectDB.type == project.type,
+                ProjectDB.id != project_id,
+            )
+        )
+    ).all()
+
+    # {company: {"count": int, "roles": {role: int}}}
+    cooccurrence: dict[str, dict] = {}
+    for sim in similar_rows:
+        sim_parts = sim.participants or []
+        sim_names = {p["name"] for p in sim_parts if p.get("name")}
+        if not (sim_names & known_names):
+            continue
+        for p in sim_parts:
+            name = p.get("name", "")
+            role = p.get("role", "")
+            if not name or name in known_names:
+                continue
+            if name not in cooccurrence:
+                cooccurrence[name] = {"count": 0, "roles": {}}
+            cooccurrence[name]["count"] += 1
+            if role:
+                cooccurrence[name]["roles"][role] = cooccurrence[name]["roles"].get(role, 0) + 1
+
+    # ── Step 2: Identify roles not yet represented ────────────────────────────
+    missing_roles: set[str] = set(_TYPICAL_ROLES.get(project.type, [])) - current_roles
+
+    # ── Step 3: Build candidate scores ───────────────────────────────────────
+    # {company: {"role": str, "score": int, "basis": str}}
+    candidates: dict[str, dict] = {}
+
+    # Co-occurrence carries high weight (real evidence)
+    for name, data in cooccurrence.items():
+        best_role = (
+            max(data["roles"], key=data["roles"].get)
+            if data["roles"] else ""
+        )
+        score = data["count"] * 10
+        candidates[name] = {
+            "role": best_role,
+            "score": score,
+            "basis": f"Historisk samförekomst i {data['count']} liknande {'projekt' if data['count'] != 1 else 'projekt'}",
+        }
+
+    # Domain priors fill gaps for missing roles
+    for entry in _ROLE_PRIORS.get(project.type, []):
+        role = entry["role"]
+        if role not in missing_roles:
+            continue
+        for idx, company in enumerate(entry["companies"]):
+            if company in known_names:
+                continue
+            prior_score = max(1, 5 - idx)
+            if company in candidates:
+                candidates[company]["score"] += prior_score
+            else:
+                candidates[company] = {
+                    "role": role,
+                    "score": prior_score,
+                    "basis": f"Typisk {role} i {project.type}-projekt",
+                }
+
+    # ── Step 4: Rank, label confidence, return top 5 ─────────────────────────
+    ranked = sorted(candidates.items(), key=lambda x: x[1]["score"], reverse=True)[:5]
+
+    predictions = []
+    for name, info in ranked:
+        score = info["score"]
+        confidence = "hög" if score >= 10 else ("medel" if score >= 5 else "låg")
+        predictions.append({
+            "name": name,
+            "likely_role": info["role"],
+            "confidence": confidence,
+            "basis": info["basis"],
+        })
+
+    return {
+        "predictions": predictions,
+        "missing_roles": sorted(missing_roles),
+    }
+
+
 @app.get("/api/filters")
 async def get_filter_options(db: AsyncSession = Depends(get_db)):
     rows = (await db.scalars(select(ProjectDB))).all()

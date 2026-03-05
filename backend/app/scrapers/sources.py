@@ -103,13 +103,24 @@ PARTICIPANT_ROLES = {
 
 # Known large Swedish construction companies (for participant extraction)
 KNOWN_COMPANIES = [
+    # Major contractors
     "Skanska", "NCC", "PEAB", "JM", "Veidekke", "Besqab", "Bonava",
+    "Serneke", "Norconsult", "Bjerking",
+    # Property owners / developers
     "Fabege", "Castellum", "Vasakronan", "Akademiska Hus", "Riksbyggen",
-    "HSB", "ByggVesta", "Serneke", "Magnolia", "Balder", "Atrium Ljungberg",
+    "HSB", "ByggVesta", "Magnolia", "Balder", "Atrium Ljungberg",
     "Klövern", "Diös", "Wallenstam", "Stena Fastigheter", "Akelius",
     "Wihlborgs", "Catena", "Platzer", "Sagax", "Corem", "Kungsleden",
+    # Technical consultants (konstruktör, projektledare)
+    "Sweco", "WSP", "Ramboll", "Tyréns", "AFRY", "COWI",
+    "Sweco Architects", "Sweco Civil",
+    # Architecture firms
+    "White Arkitekter", "Wingårdhs", "Tengbom", "Liljewall",
+    "Certego", "Fojab", "Belatchew Arkitekter",
+    # Public bodies
     "Trafikverket", "Jernhusen", "Tillväxtverket", "Region Stockholm",
     "Stockholms stad", "Göteborgs stad", "Malmö stad",
+    "Uppsala kommun", "Linköpings kommun", "Västerås stad",
 ]
 
 # Keywords used to classify project type

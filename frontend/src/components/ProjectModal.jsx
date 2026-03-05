@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import axios from 'axios'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,67 @@ function RecommendedActions({ p }) {
             </div>
           </a>
         ))}
+      </div>
+    </div>
+  )
+}
+
+const CONFIDENCE_STYLE = {
+  hög:   { bar: 'bg-emerald-500', label: 'Hög', text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+  medel: { bar: 'bg-amber-400',   label: 'Medel', text: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+  låg:   { bar: 'bg-gray-300',    label: 'Låg', text: 'text-gray-500',   bg: 'bg-gray-50 border-gray-200' },
+}
+
+function PredictedParticipants({ projectId }) {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    axios.get(`/api/projects/${projectId}/predictions`)
+      .then(r => setData(r.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false))
+  }, [projectId])
+
+  if (loading) return (
+    <div className="text-xs text-gray-400 py-2">Analyserar historiska samarbeten…</div>
+  )
+  if (!data || data.predictions.length === 0) return null
+
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+        Troliga obekräftade deltagare
+      </h3>
+      {data.missing_roles.length > 0 && (
+        <p className="text-xs text-gray-400 mb-2.5">
+          Roller som saknas: <span className="font-medium text-gray-500">{data.missing_roles.join(', ')}</span>
+        </p>
+      )}
+      <div className="space-y-2">
+        {data.predictions.map((pred, i) => {
+          const conf = CONFIDENCE_STYLE[pred.confidence] || CONFIDENCE_STYLE.låg
+          return (
+            <div key={i} className={`flex items-start gap-3 p-3 rounded-lg border border-dashed ${conf.bg}`}>
+              <div className="w-8 h-8 rounded-full bg-white border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 font-bold text-sm shrink-0">
+                {pred.name.charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-gray-700">{pred.name}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${conf.text} bg-white border`}>
+                    {conf.label} sannolikhet
+                  </span>
+                </div>
+                {pred.likely_role && (
+                  <div className="text-sm text-gray-500 mt-0.5">{pred.likely_role}</div>
+                )}
+                <div className="text-xs text-gray-400 mt-0.5 italic">{pred.basis}</div>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -233,6 +295,11 @@ export default function ProjectModal({ project: p, onClose }) {
               </div>
             </div>
           )}
+
+          {/* Predicted participants */}
+          <div className="border-t border-gray-100 pt-4">
+            <PredictedParticipants projectId={p.id} />
+          </div>
 
           {/* Recommended actions */}
           <div className="border-t border-gray-100 pt-4">
