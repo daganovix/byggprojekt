@@ -3,15 +3,17 @@ API-based scrapers for Swedish construction project data.
 
 Sources:
 1. Trafikverket Open API  — road/rail infrastructure projects (coordinates included)
-2. Göteborg Open Data     — building permits via CKAN REST API
-3. Stockholm Open Data    — building permits via CKAN REST API
+   Requires env var TRAFIKVERKET_API_KEY; skipped if not set.
+
+NOTE: CKAN open-data portals (Göteborg, Stockholm, dataportal.se) have been
+removed — their /api/3/action/ endpoints return 404 and the portals no longer
+expose a standard CKAN API at those base URLs.
 """
 import asyncio
 import logging
+import os
 import re
 from datetime import datetime
-from typing import Optional
-
 import httpx
 
 from app.scrapers.geocoder import geocode_location
@@ -28,9 +30,8 @@ _HEADERS = {
 
 _TV_ENDPOINT = "https://api.trafikinfo.trafikverket.se/v2/data.json"
 
-# Empty authenticationkey = public/anonymous access for most object types
-_TV_QUERY = """<REQUEST>
-  <LOGIN authenticationkey=""/>
+_TV_QUERY_TEMPLATE = """<REQUEST>
+  <LOGIN authenticationkey="{api_key}"/>
   <QUERY objecttype="Project" schemaversion="1" limit="500">
     <INCLUDE>Name,Description,County,Geometry.WGS84,StartDate,EndDate,Status,Contractor</INCLUDE>
   </QUERY>
@@ -81,12 +82,18 @@ def _infer_type(text: str) -> str:
 
 
 async def scrape_trafikverket() -> list[dict]:
+    api_key = os.environ.get("TRAFIKVERKET_API_KEY", "").strip()
+    if not api_key:
+        log.info("Trafikverket API skipped — set TRAFIKVERKET_API_KEY to enable")
+        return []
+
     projects: list[dict] = []
+    query = _TV_QUERY_TEMPLATE.format(api_key=api_key)
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 _TV_ENDPOINT,
-                content=_TV_QUERY.strip(),
+                content=query.strip(),
                 headers={"Content-Type": "application/xml", **_HEADERS},
             )
             resp.raise_for_status()
@@ -155,169 +162,7 @@ async def scrape_trafikverket() -> list[dict]:
     return projects
 
 
-# ── CKAN open data (Göteborg, Stockholm building permits) ─────────────────────
-
-_CKAN_SOURCES = [
-    # Göteborg – their CKAN open-data portal
-    {
-        "name": "Göteborg Open Data – Bygglov",
-        "base_url": "https://data.goteborg.se",
-        "search_queries": ["bygglov", "beviljade bygglov", "plan och bygg", "nybyggnad"],
-        "region": "Västra Götaland",
-        "default_type": "Offentligt",
-    },
-    # Stockholm – their open-data portal (original confirmed hostname)
-    {
-        "name": "Stockholm Open Data – Bygglov",
-        "base_url": "https://dataportalen.stockholm.se",
-        "search_queries": ["bygglov", "beviljade bygglov", "plan", "nybyggnad"],
-        "region": "Stockholm",
-        "default_type": "Offentligt",
-    },
-    # Swedish national open-data portal (aggregates all municipalities)
-    {
-        "name": "Sveriges dataportal – Bygglov",
-        "base_url": "https://www.dataportal.se",
-        "search_queries": ["bygglov", "bygglovsstatistik", "beviljade bygglov"],
-        "region": "",
-        "default_type": "Offentligt",
-    },
-]
-
-_PERMIT_KW = [
-    "nybyggnad", "tillbyggnad", "ombyggnad", "påbyggnad",
-    "bostäder", "kontor", "skola", "handel", "industri", "lager",
-    "hotell", "sjukhus", "kyrka", "garage",
-]
-
-
-async def _find_ckan_resource(client: httpx.AsyncClient, base_url: str, queries: list[str]) -> Optional[str]:
-    """Try multiple CKAN package_search queries; return first datastore resource ID found."""
-    for query in queries:
-        try:
-            r = await client.get(
-                f"{base_url}/api/3/action/package_search",
-                params={"q": query, "rows": 10},
-                timeout=20,
-            )
-            r.raise_for_status()
-            for pkg in r.json().get("result", {}).get("results", []):
-                for res in pkg.get("resources", []):
-                    rid = res.get("id")
-                    if rid:
-                        return rid
-        except Exception as exc:
-            log.warning("CKAN package_search failed at %s (q=%r): %s", base_url, query, exc)
-    return None
-
-
-async def _scrape_one_ckan(client: httpx.AsyncClient, source: dict) -> list[dict]:
-    queries = source.get("search_queries") or [source.get("search_query", "bygglov")]
-    resource_id = await _find_ckan_resource(client, source["base_url"], queries)
-    if not resource_id:
-        log.warning("CKAN: no resource found for %s", source["name"])
-        return []
-
-    try:
-        r = await client.get(
-            f"{source['base_url']}/api/3/action/datastore_search",
-            params={"resource_id": resource_id, "limit": 300},
-            timeout=30,
-        )
-        r.raise_for_status()
-        records = r.json().get("result", {}).get("records", [])
-    except Exception as exc:
-        log.warning("CKAN datastore_search failed for %s: %s", source["name"], exc)
-        return []
-
-    log.info("CKAN %s — %d records", source["name"], len(records))
-    projects: list[dict] = []
-
-    for rec in records:
-        # Field names vary per dataset — try common variants
-        address = (
-            rec.get("adress") or rec.get("address") or
-            rec.get("gatuadress") or rec.get("fastighets_beteckning") or
-            rec.get("fastighetsbeteckning") or ""
-        )
-        desc = (
-            rec.get("atgard") or rec.get("åtgärd") or
-            rec.get("beskrivning") or rec.get("description") or
-            rec.get("anmarkning") or rec.get("åtgärdsbeskrivning") or ""
-        )
-        rec_id = str(
-            rec.get("arendenummer") or rec.get("diarie_nummer") or
-            rec.get("dnr") or rec.get("_id") or rec.get("id") or ""
-        )
-        date_str = (
-            rec.get("beslutsdatum") or rec.get("datum") or
-            rec.get("date") or rec.get("inkomstdatum") or ""
-        )
-
-        if not address and not desc:
-            continue
-
-        full_text = f"{address} {desc}".lower()
-        if not any(kw in full_text for kw in _PERMIT_KW):
-            continue
-
-        pub = datetime.utcnow()
-        if date_str:
-            try:
-                pub = datetime.fromisoformat(str(date_str)[:10])
-            except Exception:
-                pass
-
-        source_url = (
-            f"{source['base_url']}/dataset/bygglov?record={rec_id}"
-            if rec_id else ""
-        )
-        geocode_query = f"{address}, Sverige" if address else source["region"]
-        coords = await geocode_location(geocode_query, source["region"])
-        lat = coords[0] if coords else None
-        lng = coords[1] if coords else None
-
-        title = (desc or address)[:200]
-        projects.append({
-            "name": title,
-            "type": source["default_type"],
-            "description": desc[:1000],
-            "location": address or source["region"],
-            "region": source["region"],
-            "lat": lat,
-            "lng": lng,
-            "participants": [],
-            "estimated_cost": "",
-            "cost_value_msek": None,
-            "timeline_start": "",
-            "timeline_end": "",
-            "status": "Pågående",
-            "source_url": source_url,
-            "source_name": source["name"],
-            "published_at": pub,
-        })
-
-    return projects
-
-
-async def scrape_ckan_sources() -> list[dict]:
-    async with httpx.AsyncClient(headers=_HEADERS, follow_redirects=True, timeout=30) as client:
-        results = await asyncio.gather(
-            *[_scrape_one_ckan(client, src) for src in _CKAN_SOURCES],
-            return_exceptions=True,
-        )
-    projects: list[dict] = []
-    for r in results:
-        if isinstance(r, list):
-            projects.extend(r)
-    return projects
-
-
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 async def scrape_api_sources() -> list[dict]:
-    tv, ckan = await asyncio.gather(
-        scrape_trafikverket(),
-        scrape_ckan_sources(),
-    )
-    return tv + ckan
+    return await scrape_trafikverket()

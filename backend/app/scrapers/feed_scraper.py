@@ -163,14 +163,27 @@ def _build_title(entry: feedparser.FeedParserDict, text: str) -> str:
 
 # ── Main scraper ─────────────────────────────────────────────────────────────
 
+_FETCH_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+}
+
+
 async def _scrape_source(source: dict) -> list[dict]:
     """Fetch and parse one RSS source. Returns list of project dicts."""
     try:
-        feed = await asyncio.to_thread(
-            feedparser.parse,
-            source["url"],
-            agent="FeedFetcher-Google; (+http://www.google.com/feedfetcher.html)",
-        )
+        async with httpx.AsyncClient(
+            headers=_FETCH_HEADERS, follow_redirects=True, timeout=15
+        ) as client:
+            resp = await client.get(source["url"])
+            resp.raise_for_status()
+            content = resp.content
+
+        feed = await asyncio.to_thread(feedparser.parse, content)
         if feed.bozo and not feed.entries:
             raise ValueError(f"bozo: {feed.bozo_exception}")
         log.info("Scraped %s — %d entries", source["name"], len(feed.entries))

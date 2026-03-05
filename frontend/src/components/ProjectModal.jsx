@@ -1,5 +1,121 @@
 import { useEffect } from 'react'
 
+// ── Icons ────────────────────────────────────────────────────────────────────
+
+function IconLinkedIn() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+      <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.44-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zM7.12 20.45H3.55V9h3.57v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"/>
+    </svg>
+  )
+}
+
+function IconSearch() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  )
+}
+
+function IconNewspaper() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
+      <path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/>
+    </svg>
+  )
+}
+
+function IconMail() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <rect width="20" height="16" x="2" y="4" rx="2"/>
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </svg>
+  )
+}
+
+// ── Recommended actions ───────────────────────────────────────────────────────
+
+function RecommendedActions({ p }) {
+  const mainCompany = p.participants?.[0]?.name || ''
+
+  const linkedinQuery = mainCompany
+    ? `${mainCompany} inköpschef projektledare`
+    : `inköpschef projektledare ${p.location || p.region || 'bygg'}`
+
+  const procurementQuery = [p.name, p.location, 'upphandling förfrågningsunderlag'].filter(Boolean).join(' ')
+  const newsQuery = [p.name, p.location].filter(Boolean).join(' ')
+
+  const emailSubject = `Intresseanmälan – ${p.name}`
+  const emailBody = [
+    'Hej,',
+    '',
+    `Jag noterade att ni är involverade i projektet "${p.name}"${p.location ? ` i ${p.location}` : ''} och vill gärna presentera hur vi kan bidra.`,
+    '',
+    'Har ni möjlighet till ett kort samtal för att utforska ett eventuellt samarbete?',
+    '',
+    'Med vänliga hälsningar,',
+  ].join('\n')
+
+  const actions = [
+    {
+      icon: <IconLinkedIn />,
+      label: 'Hitta beslutsfattare',
+      sub: mainCompany ? `Sök kontakter på ${mainCompany}` : 'Sök projektledare & inköp',
+      href: `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(linkedinQuery)}`,
+      style: 'text-[#0a66c2] bg-blue-50 hover:bg-blue-100 border-blue-100',
+    },
+    {
+      icon: <IconSearch />,
+      label: 'Sök upphandling',
+      sub: 'Hitta anbudsförfrågningar',
+      href: `https://www.google.com/search?q=${encodeURIComponent(procurementQuery)}`,
+      style: 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-100',
+    },
+    {
+      icon: <IconNewspaper />,
+      label: 'Nyheter om projektet',
+      sub: 'Senaste nytt & bakgrund',
+      href: `https://www.google.com/search?q=${encodeURIComponent(newsQuery)}&tbm=nws`,
+      style: 'text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-100',
+    },
+    {
+      icon: <IconMail />,
+      label: 'E-postmall',
+      sub: 'Redo att skicka kontaktmail',
+      href: `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`,
+      style: 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-100',
+    },
+  ]
+
+  return (
+    <div>
+      <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">
+        Rekommenderade åtgärder
+      </h3>
+      <div className="grid grid-cols-2 gap-2">
+        {actions.map(a => (
+          <a
+            key={a.label}
+            href={a.href}
+            target={a.href.startsWith('mailto') ? '_self' : '_blank'}
+            rel="noopener noreferrer"
+            className={`flex items-start gap-2.5 p-3 rounded-lg border transition-colors ${a.style}`}
+          >
+            <span className="shrink-0 mt-0.5">{a.icon}</span>
+            <div className="min-w-0">
+              <div className="font-medium text-sm leading-tight">{a.label}</div>
+              <div className="text-xs opacity-60 mt-0.5 leading-tight truncate">{a.sub}</div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const STATUS_BADGE = {
   'Planerat': 'bg-yellow-100 text-yellow-800',
   'Pågående': 'bg-blue-100 text-blue-800',
@@ -117,6 +233,11 @@ export default function ProjectModal({ project: p, onClose }) {
               </div>
             </div>
           )}
+
+          {/* Recommended actions */}
+          <div className="border-t border-gray-100 pt-4">
+            <RecommendedActions p={p} />
+          </div>
 
           {/* Source link */}
           {p.source_url && (

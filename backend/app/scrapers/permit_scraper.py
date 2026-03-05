@@ -17,6 +17,7 @@ from typing import Optional
 
 import httpx
 from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 
 from app.scrapers.sources import SWEDISH_REGIONS, TYPE_KEYWORDS
 from app.scrapers.geocoder import geocode_location
@@ -32,10 +33,10 @@ _HEADERS = {
 # ── Municipality target list ──────────────────────────────────────────────────
 
 MUNICIPALITY_TARGETS = [
-    # Stockholm – city planning news (guaranteed to exist)
+    # Stockholm – stadsbyggnad news
     {
-        "name": "Stockholms stad – Stadsutveckling",
-        "url": "https://www.stockholm.se/stadsutveckling/",
+        "name": "Stockholms stad – Stadsbyggnad",
+        "url": "https://www.stockholm.se/stadsbyggnad/",
         "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Stockholm",
@@ -47,14 +48,6 @@ MUNICIPALITY_TARGETS = [
         "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Västra Götaland",
-    },
-    # Malmö – main news section
-    {
-        "name": "Malmö stad – Nyheter",
-        "url": "https://malmo.se/nyheter/",
-        "parser": "parse_decision_list",
-        "default_type": "Offentligt",
-        "region": "Skåne",
     },
     # Uppsala – building news (confirmed 200 OK)
     {
@@ -80,7 +73,11 @@ MUNICIPALITY_TARGETS = [
         "default_type": "Offentligt",
         "region": "Västmanland",
     },
-    # Post- och Inrikes Tidningar – official gazette, plan/building categories
+    # NOTE: Malmö stad removed — server returns malformed Transfer-Encoding headers.
+]
+
+# PoIT targets scraped separately via Playwright (JS + bot-protection)
+POIT_TARGETS = [
     {
         "name": "Post- och Inrikes Tidningar – Plan & Bygg",
         "url": "https://poit.bolagsverket.se/poit/PublikPublicering.do?kategoriId=44",
@@ -404,10 +401,49 @@ _PARSERS = {
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
+async def _scrape_poit_playwright(target: dict) -> list[dict]:
+    """
+    Fetch a PoIT page using Playwright to bypass F5 BIG-IP bot protection.
+    Launches a headless Chromium instance, waits for the JS-rendered table,
+    then hands the HTML to parse_poit().
+    """
+    try:
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            context = await browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/122.0.0.0 Safari/537.36"
+                ),
+                locale="sv-SE",
+            )
+            page = await context.new_page()
+            await page.goto(target["url"], wait_until="networkidle", timeout=30_000)
+
+            # Wait for either a table row or a known "no results" indicator
+            try:
+                await page.wait_for_selector("table tr, .noResult, #resultList", timeout=15_000)
+            except PlaywrightTimeout:
+                pass  # parse whatever we have
+
+            html = await page.content()
+            await browser.close()
+
+        soup = BeautifulSoup(html, "lxml")
+        projects = parse_poit(soup, target)
+        log.info("PoIT (Playwright) %s — %d items", target["name"], len(projects))
+        return projects
+    except Exception as exc:
+        log.warning("PoIT Playwright scrape failed for %s: %s", target["name"], exc)
+        return []
+
+
 async def scrape_permits() -> list[dict]:
     """Fetch municipality building permit pages and return structured projects."""
     all_projects: list[dict] = []
 
+    # ── HTTP-based municipality targets ──────────────────────────────────────
     async with httpx.AsyncClient(headers=_HEADERS, timeout=20, follow_redirects=True) as client:
         for target in MUNICIPALITY_TARGETS:
             try:
@@ -418,7 +454,6 @@ async def scrape_permits() -> list[dict]:
                 projects = parser_fn(soup, target)
                 log.info("Permit scrape %s — %d items", target["name"], len(projects))
 
-                # Geocode entries that lack coordinates
                 for p in projects:
                     if p["lat"] is None and p["location"]:
                         coords = await geocode_location(p["location"], p["region"])
@@ -429,5 +464,17 @@ async def scrape_permits() -> list[dict]:
             except Exception as exc:
                 log.warning("Permit scrape failed for %s: %s", target["name"], exc)
                 continue
+
+    # ── PoIT via Playwright (JS + bot-protection) ─────────────────────────────
+    poit_results = await asyncio.gather(
+        *[_scrape_poit_playwright(t) for t in POIT_TARGETS]
+    )
+    for projects in poit_results:
+        for p in projects:
+            if p["lat"] is None and p["location"]:
+                coords = await geocode_location(p["location"], p["region"])
+                if coords:
+                    p["lat"], p["lng"] = coords
+        all_projects.extend(projects)
 
     return all_projects

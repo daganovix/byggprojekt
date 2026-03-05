@@ -26,7 +26,6 @@ RSS_SOURCES = [
         "default_type": "Kommersiellt",
     },
     # ── Construction company press releases (Mynewsdesk) ────────────────────────
-    # Mynewsdesk current RSS format: /feed/rss  (not .rss extension)
     {
         "name": "NCC – Pressmeddelanden",
         "url": "https://www.mynewsdesk.com/se/ncc/pressreleases/feed/rss",
