@@ -4,26 +4,16 @@ Each entry describes a feed and how to classify its projects.
 """
 
 RSS_SOURCES = [
+    # Confirmed working feeds
     {
         "name": "Byggnyheter",
         "url": "https://byggnyheter.se/rss.xml",
         "default_type": "Övrigt",
     },
-    # ── Additional sources ────────────────────────────────────────────────────
     {
         "name": "Fastighetstidningen",
         "url": "https://fastighetstidningen.se/feed/",
         "default_type": "Kommersiellt",
-    },
-    {
-        "name": "Ny Teknik",
-        "url": "https://www.nyteknik.se/rss",
-        "default_type": "Övrigt",
-    },
-    {
-        "name": "Samhällsbyggaren",
-        "url": "https://samhallsbyggaren.se/feed/",
-        "default_type": "Offentligt",
     },
     {
         "name": "Husbyggaren",
@@ -34,32 +24,6 @@ RSS_SOURCES = [
         "name": "Arkitekten",
         "url": "https://arkitekten.se/feed/",
         "default_type": "Kommersiellt",
-    },
-    {
-        "name": "Boverket",
-        "url": "https://www.boverket.se/rss/nyheter/",
-        "default_type": "Offentligt",
-    },
-    {
-        "name": "Energifokus",
-        "url": "https://energifokus.se/feed/",
-        "default_type": "Industri",
-    },
-    # ── Municipality news feeds (include planning/permit announcements) ────────
-    {
-        "name": "Stockholms stad – Nyheter",
-        "url": "https://www.stockholm.se/OmStockholm/Nyheter/rss/",
-        "default_type": "Offentligt",
-    },
-    {
-        "name": "Göteborgs stad – Nyheter",
-        "url": "https://goteborg.se/wps/portal/start/om-goteborg/nyheter/rss",
-        "default_type": "Offentligt",
-    },
-    {
-        "name": "Malmö stad – Nyheter",
-        "url": "https://malmo.se/rss/nyheter.xml",
-        "default_type": "Offentligt",
     },
 ]
 
