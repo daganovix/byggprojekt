@@ -163,82 +163,87 @@ def _build_title(entry: feedparser.FeedParserDict, text: str) -> str:
 
 # ── Main scraper ─────────────────────────────────────────────────────────────
 
-async def scrape_all_feeds() -> list[dict]:
+async def _scrape_source(source: dict) -> list[dict]:
+    """Fetch and parse one RSS source. Returns list of project dicts."""
+    try:
+        feed = await asyncio.to_thread(
+            feedparser.parse,
+            source["url"],
+            agent="FeedFetcher-Google; (+http://www.google.com/feedfetcher.html)",
+        )
+        if feed.bozo and not feed.entries:
+            raise ValueError(f"bozo: {feed.bozo_exception}")
+        log.info("Scraped %s — %d entries", source["name"], len(feed.entries))
+    except Exception as exc:
+        log.warning("Failed to fetch %s: %s", source["name"], exc)
+        return []
+
     projects = []
-    for source in RSS_SOURCES:
-        try:
-            # feedparser fetches with its own headers; falls back gracefully on errors
-            feed = await asyncio.to_thread(
-                feedparser.parse,
-                source["url"],
-                agent="FeedFetcher-Google; (+http://www.google.com/feedfetcher.html)",
-            )
-            if feed.bozo and not feed.entries:
-                raise ValueError(f"bozo: {feed.bozo_exception}")
-            log.info("Scraped %s — %d entries", source["name"], len(feed.entries))
-        except Exception as exc:
-            log.warning("Failed to fetch %s: %s", source["name"], exc)
+    for entry in feed.entries[:20]:  # max 20 per feed
+        raw = _clean_html(
+            getattr(entry, "summary", "") or getattr(entry, "content", [{}])[0].get("value", "")
+        )
+        full_text = f"{getattr(entry, 'title', '')} {raw}"
+
+        # Filter: skip articles unlikely to be about construction projects
+        construction_kw = [
+            "bygg", "konstruktion", "projekt", "fastighet", "renovering",
+            "exploatering", "infrastruktur", "bostäder", "kontor", "fabrik",
+        ]
+        if not any(kw in full_text.lower() for kw in construction_kw):
             continue
 
-        for entry in feed.entries[:20]:  # max 20 per feed
-            raw = _clean_html(
-                getattr(entry, "summary", "") or getattr(entry, "content", [{}])[0].get("value", "")
+        title = _build_title(entry, full_text)
+        cost_label, cost_msek = _extract_cost(full_text)
+        start, end = _extract_timeline(full_text)
+        location, region = _extract_location(full_text)
+        participants = _extract_participants(full_text)
+        project_type = _classify_type(full_text, source["default_type"])
+
+        # Geocode via local lookup (instant, no rate-limit)
+        coords = await geocode_location(location, region)
+        lat = coords[0] if coords else None
+        lng = coords[1] if coords else None
+
+        # Published date
+        try:
+            pub = dateparser.parse(
+                getattr(entry, "published", "") or str(datetime.utcnow())
             )
-            full_text = f"{getattr(entry, 'title', '')} {raw}"
+        except Exception:
+            pub = datetime.utcnow()
 
-            # Filter: skip articles unlikely to be about construction projects
-            construction_kw = [
-                "bygg", "konstruktion", "projekt", "fastighet", "renovering",
-                "exploatering", "infrastruktur", "bostäder", "kontor", "fabrik",
-            ]
-            if not any(kw in full_text.lower() for kw in construction_kw):
-                continue
+        # Infer status from years
+        now_year = datetime.utcnow().year
+        status = "Planerat"
+        if start and int(start) <= now_year:
+            status = "Pågående"
+        if end and int(end) < now_year:
+            status = "Klart"
 
-            title = _build_title(entry, full_text)
-            cost_label, cost_msek = _extract_cost(full_text)
-            start, end = _extract_timeline(full_text)
-            location, region = _extract_location(full_text)
-            participants = _extract_participants(full_text)
-            project_type = _classify_type(full_text, source["default_type"])
-
-            # Geocode
-            coords = await geocode_location(location, region)
-            lat = coords[0] if coords else None
-            lng = coords[1] if coords else None
-
-            # Published date
-            try:
-                pub = dateparser.parse(
-                    getattr(entry, "published", "") or str(datetime.utcnow())
-                )
-            except Exception:
-                pub = datetime.utcnow()
-
-            # Infer status from years
-            now_year = datetime.utcnow().year
-            status = "Planerat"
-            if start and int(start) <= now_year:
-                status = "Pågående"
-            if end and int(end) < now_year:
-                status = "Klart"
-
-            projects.append({
-                "name": title,
-                "type": project_type,
-                "description": raw[:1000],
-                "location": location,
-                "region": region,
-                "lat": lat,
-                "lng": lng,
-                "participants": participants,
-                "estimated_cost": cost_label,
-                "cost_value_msek": cost_msek,
-                "timeline_start": start,
-                "timeline_end": end,
-                "status": status,
-                "source_url": getattr(entry, "link", ""),
-                "source_name": source["name"],
-                "published_at": pub or datetime.utcnow(),
-            })
+        projects.append({
+            "name": title,
+            "type": project_type,
+            "description": raw[:1000],
+            "location": location,
+            "region": region,
+            "lat": lat,
+            "lng": lng,
+            "participants": participants,
+            "estimated_cost": cost_label,
+            "cost_value_msek": cost_msek,
+            "timeline_start": start,
+            "timeline_end": end,
+            "status": status,
+            "source_url": getattr(entry, "link", ""),
+            "source_name": source["name"],
+            "published_at": pub or datetime.utcnow(),
+        })
 
     return projects
+
+
+async def scrape_all_feeds() -> list[dict]:
+    """Fetch all RSS sources in parallel and return combined project list."""
+    results = await asyncio.gather(*[_scrape_source(s) for s in RSS_SOURCES])
+    return [p for source_projects in results for p in source_projects]
