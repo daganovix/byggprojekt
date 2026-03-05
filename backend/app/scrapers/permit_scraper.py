@@ -32,37 +32,64 @@ _HEADERS = {
 # ── Municipality target list ──────────────────────────────────────────────────
 
 MUNICIPALITY_TARGETS = [
+    # Stockholm – actual weekly permit decision notice list
     {
-        "name": "Stockholms stad – Bygglov",
+        "name": "Stockholms stad – Kungörelser",
         "url": "https://www.stockholm.se/OmStockholm/Stadsbyggnadskontoret/Kungorelser/",
         "parser": "parse_stockholm",
         "default_type": "Offentligt",
         "region": "Stockholm",
     },
+    # Göteborg – stadsbyggnad news (includes permit decisions)
     {
-        "name": "Göteborgs stad – Bygglov",
-        "url": "https://www.goteborg.se/wps/portal/start/bygga-bo-och-miljo/bygga/bygglov",
-        "parser": "parse_generic",
+        "name": "Göteborgs stad – Stadsbyggnad",
+        "url": "https://www.goteborg.se/nyheter/stadsbyggnad/",
+        "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Västra Götaland",
     },
+    # Malmö – planning and building permit section
     {
-        "name": "Malmö stad – Bygglov",
-        "url": "https://malmo.se/Bo-bygga--miljo/Bygga-nytt-bygga-om-riva-flytta/Bygglov.html",
-        "parser": "parse_generic",
+        "name": "Malmö stad – Stadsbyggnad",
+        "url": "https://malmo.se/Stadsbyggnad.html",
+        "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Skåne",
     },
+    # Uppsala – nybyggnad and permit page
     {
-        "name": "Uppsala kommun – Bygglov",
-        "url": "https://www.uppsala.se/bo-och-bygga/nybyggnad-och-bygglov/",
-        "parser": "parse_generic",
+        "name": "Uppsala kommun – Bygg och plan",
+        "url": "https://www.uppsala.se/nyheter/?category=bygg",
+        "parser": "parse_decision_list",
         "default_type": "Offentligt",
         "region": "Uppsala",
     },
-    # Post- och Inrikes Tidningar: property and construction-related announcements
+    # Linköping – building permit news
     {
-        "name": "Post- och Inrikes Tidningar",
+        "name": "Linköpings kommun – Bygglov",
+        "url": "https://www.linkoping.se/bo-bygga-miljo/bygglov/",
+        "parser": "parse_decision_list",
+        "default_type": "Offentligt",
+        "region": "Östergötland",
+    },
+    # Västerås – building permits
+    {
+        "name": "Västerås stad – Bygglov",
+        "url": "https://www.vasteras.se/bygga-bo-miljo/bygglov-och-anmalan.html",
+        "parser": "parse_decision_list",
+        "default_type": "Offentligt",
+        "region": "Västmanland",
+    },
+    # Post- och Inrikes Tidningar – official gazette, plan/building category
+    {
+        "name": "Post- och Inrikes Tidningar – Plan & Bygg",
+        "url": "https://poit.bolagsverket.se/poit/PublikPublicering.do?kategoriId=44",
+        "parser": "parse_poit",
+        "default_type": "Offentligt",
+        "region": "",
+    },
+    {
+        "name": "Post- och Inrikes Tidningar – Tillstånd",
         "url": "https://poit.bolagsverket.se/poit/PublikPublicering.do?kategoriId=45",
         "parser": "parse_poit",
         "default_type": "Offentligt",
@@ -153,19 +180,34 @@ def _make_project(title, description, location, region, source_url, source_name,
 def parse_stockholm(soup: BeautifulSoup, target: dict) -> list[dict]:
     """Parse Stockholm stadsbyggnadskontoret kungörelser page."""
     projects = []
-    # The page lists permit announcements in article/list elements
-    for item in soup.select("article, .listing__item, li.item"):
+    # Try multiple selectors — the page structure varies across deployments
+    selectors = [
+        "article", ".listing__item", "li.item",
+        ".teaser", ".news-item", ".article-teaser",
+        "li[class*='item']", "div[class*='teaser']",
+    ]
+    items = []
+    for sel in selectors:
+        items = soup.select(sel)
+        if len(items) >= 2:
+            break
+
+    # Fall back: any <a> inside an <li> or <article>
+    if not items:
+        items = soup.find_all(["article", "li"], limit=50)
+
+    for item in items:
         heading = item.find(["h2", "h3", "h4", "a"])
         if not heading:
             continue
         title = heading.get_text(strip=True)
-        if not title or len(title) < 5:
+        if not title or len(title) < 8:
             continue
         link_tag = item.find("a", href=True)
-        url = link_tag["href"] if link_tag else target["url"]
+        url = (link_tag["href"] if link_tag else target["url"])
         if url.startswith("/"):
             url = "https://www.stockholm.se" + url
-        desc_tag = item.find(["p", ".preamble", ".description"])
+        desc_tag = item.find(["p", "div"])
         description = desc_tag.get_text(strip=True) if desc_tag else title
         projects.append(_make_project(
             title=title,
@@ -176,7 +218,65 @@ def parse_stockholm(soup: BeautifulSoup, target: dict) -> list[dict]:
             source_name=target["name"],
             default_type=target["default_type"],
         ))
-    return projects
+    return projects[:20]
+
+
+def parse_decision_list(soup: BeautifulSoup, target: dict) -> list[dict]:
+    """
+    Generic parser for municipality news/decision pages.
+    Picks up article teasers, news cards, and table rows that describe
+    planning or building-related decisions.
+    """
+    projects = []
+    region = target.get("region", "")
+    base = "/".join(target["url"].split("/")[:3])  # https://www.example.se
+
+    # Collect candidate elements: articles, news teasers, table rows
+    candidates = []
+    for sel in ("article", ".news-item", ".teaser", ".article-teaser",
+                "[class*='news']", "[class*='article']", "tr"):
+        found = soup.select(sel)
+        if found:
+            candidates.extend(found)
+        if len(candidates) >= 5:
+            break
+
+    # If nothing structure-like found, fall through to paragraph-level scan
+    if not candidates:
+        candidates = soup.find_all(["h2", "h3", "h4"], limit=40)
+
+    seen: set[str] = set()
+    for el in candidates[:40]:
+        heading = el.find(["h1", "h2", "h3", "h4", "th", "strong"]) or (
+            el if el.name in ("h2", "h3", "h4") else None
+        )
+        if not heading:
+            continue
+        title = heading.get_text(strip=True)
+        if not title or len(title) < 8 or title in seen:
+            continue
+        seen.add(title)
+
+        link_tag = el.find("a", href=True) or heading.find("a", href=True)
+        source_url = target["url"]
+        if link_tag:
+            href = link_tag["href"]
+            source_url = href if href.startswith("http") else base + href
+
+        desc_el = el.find(["p", "td", "div"])
+        description = desc_el.get_text(strip=True) if desc_el else title
+
+        projects.append(_make_project(
+            title=title,
+            description=description,
+            location=region,
+            region=region,
+            source_url=source_url,
+            source_name=target["name"],
+            default_type=target["default_type"],
+        ))
+
+    return projects[:20]
 
 
 def parse_poit(soup: BeautifulSoup, target: dict) -> list[dict]:
@@ -251,6 +351,7 @@ _PARSERS = {
     "parse_stockholm": parse_stockholm,
     "parse_poit": parse_poit,
     "parse_generic": parse_generic,
+    "parse_decision_list": parse_decision_list,
 }
 
 # ── Main entry point ──────────────────────────────────────────────────────────

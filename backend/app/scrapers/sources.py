@@ -4,7 +4,7 @@ Each entry describes a feed and how to classify its projects.
 """
 
 RSS_SOURCES = [
-    # Confirmed working feeds
+    # ── Confirmed working trade press ───────────────────────────────────────────
     {
         "name": "Byggnyheter",
         "url": "https://byggnyheter.se/rss.xml",
@@ -24,6 +24,49 @@ RSS_SOURCES = [
         "name": "Arkitekten",
         "url": "https://arkitekten.se/feed/",
         "default_type": "Kommersiellt",
+    },
+    # ── Construction company press releases (Mynewsdesk) ────────────────────────
+    {
+        "name": "NCC – Pressmeddelanden",
+        "url": "https://www.mynewsdesk.com/se/ncc/pressreleases.rss",
+        "default_type": "Övrigt",
+    },
+    {
+        "name": "Skanska – Pressmeddelanden",
+        "url": "https://www.mynewsdesk.com/se/skanska/pressreleases.rss",
+        "default_type": "Övrigt",
+    },
+    {
+        "name": "Peab – Pressmeddelanden",
+        "url": "https://www.mynewsdesk.com/se/peab/pressreleases.rss",
+        "default_type": "Övrigt",
+    },
+    {
+        "name": "JM – Pressmeddelanden",
+        "url": "https://www.mynewsdesk.com/se/jm_ab/pressreleases.rss",
+        "default_type": "Bostäder",
+    },
+    # ── Municipality planning news ───────────────────────────────────────────────
+    {
+        "name": "Stockholm – Stadsbyggnadsnytt",
+        "url": "https://www.stockholm.se/OmStockholm/Stadsbyggnadskontoret/Nyheter/Rss/",
+        "default_type": "Offentligt",
+    },
+    {
+        "name": "Malmö – Stadsbyggnad",
+        "url": "https://malmo.se/Stadsbyggnad.html?rss=1",
+        "default_type": "Offentligt",
+    },
+    # ── Swedish national planning bodies ─────────────────────────────────────────
+    {
+        "name": "Boverket – Nyheter",
+        "url": "https://www.boverket.se/sv/om-boverket/press/nyheter/rss/",
+        "default_type": "Offentligt",
+    },
+    {
+        "name": "Trafikverket – Nyheter",
+        "url": "https://www.trafikverket.se/om-oss/nyheter/rss/",
+        "default_type": "Infrastruktur",
     },
 ]
 

@@ -161,15 +161,22 @@ _CKAN_SOURCES = [
     {
         "name": "Göteborg Open Data – Bygglov",
         "base_url": "https://opendata.goteborg.se",
-        "search_query": "bygglov",
+        "search_queries": ["bygglov", "beviljade bygglov", "plan och bygg", "nybyggnad"],
         "region": "Västra Götaland",
         "default_type": "Offentligt",
     },
     {
         "name": "Stockholm Open Data – Bygglov",
-        "base_url": "https://dataportalen.stockholm.se",
-        "search_query": "bygglov",
+        "base_url": "https://opendata.stockholm.se",
+        "search_queries": ["bygglov", "beviljade bygglov", "plan", "nybyggnad"],
         "region": "Stockholm",
+        "default_type": "Offentligt",
+    },
+    {
+        "name": "Malmö Open Data – Bygglov",
+        "base_url": "https://dataportalen.malmo.se",
+        "search_queries": ["bygglov", "detaljplan", "nybyggnad"],
+        "region": "Skåne",
         "default_type": "Offentligt",
     },
 ]
@@ -181,29 +188,29 @@ _PERMIT_KW = [
 ]
 
 
-async def _find_ckan_resource(client: httpx.AsyncClient, base_url: str, query: str) -> Optional[str]:
-    """Query CKAN package_search and return the first datastore resource ID."""
-    try:
-        r = await client.get(
-            f"{base_url}/api/3/action/package_search",
-            params={"q": query, "rows": 10},
-            timeout=20,
-        )
-        r.raise_for_status()
-        for pkg in r.json().get("result", {}).get("results", []):
-            for res in pkg.get("resources", []):
-                fmt = (res.get("format") or "").upper()
-                if fmt in ("JSON", "CSV", ""):
+async def _find_ckan_resource(client: httpx.AsyncClient, base_url: str, queries: list[str]) -> Optional[str]:
+    """Try multiple CKAN package_search queries; return first datastore resource ID found."""
+    for query in queries:
+        try:
+            r = await client.get(
+                f"{base_url}/api/3/action/package_search",
+                params={"q": query, "rows": 10},
+                timeout=20,
+            )
+            r.raise_for_status()
+            for pkg in r.json().get("result", {}).get("results", []):
+                for res in pkg.get("resources", []):
                     rid = res.get("id")
                     if rid:
                         return rid
-    except Exception as exc:
-        log.warning("CKAN package_search failed at %s: %s", base_url, exc)
+        except Exception as exc:
+            log.warning("CKAN package_search failed at %s (q=%r): %s", base_url, query, exc)
     return None
 
 
 async def _scrape_one_ckan(client: httpx.AsyncClient, source: dict) -> list[dict]:
-    resource_id = await _find_ckan_resource(client, source["base_url"], source["search_query"])
+    queries = source.get("search_queries") or [source.get("search_query", "bygglov")]
+    resource_id = await _find_ckan_resource(client, source["base_url"], queries)
     if not resource_id:
         log.warning("CKAN: no resource found for %s", source["name"])
         return []
