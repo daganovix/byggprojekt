@@ -343,7 +343,7 @@ async def sales_coach(project_id: int, body: CoachRequest, db: AsyncSession = De
     p = _to_out(row)
 
     participants_text = "\n".join(
-        f"- {pt['name']} ({pt['role'] or 'okänd roll'})"
+        f"- {pt.name} ({pt.role or 'okänd roll'})"
         for pt in (p.participants or [])
     ) or "Inga bekräftade deltagare"
 
