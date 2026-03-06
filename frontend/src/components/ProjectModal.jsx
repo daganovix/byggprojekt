@@ -131,6 +131,10 @@ function SalesCoach({ project }) {
         body: JSON.stringify({ message: userMsg, history }),
       })
 
+      if (!res.ok) {
+        throw new Error(`Serverfel: ${res.status}`)
+      }
+
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
@@ -147,7 +151,12 @@ function SalesCoach({ project }) {
           const data = line.slice(6)
           if (data === '[DONE]') break
           try {
-            assistantText += JSON.parse(data).text
+            const parsed = JSON.parse(data)
+            if (parsed.error) {
+              assistantText = `Fel: ${parsed.error}`
+            } else {
+              assistantText += parsed.text || ''
+            }
             setMessages(prev => {
               const updated = [...prev]
               updated[updated.length - 1] = { role: 'assistant', content: assistantText }
@@ -156,6 +165,15 @@ function SalesCoach({ project }) {
           } catch {}
         }
       }
+    } catch (err) {
+      setMessages(prev => {
+        const updated = [...prev]
+        updated[updated.length - 1] = {
+          role: 'assistant',
+          content: `Ett fel uppstod: ${err.message}. Kontrollera att ANTHROPIC_API_KEY är konfigurerad.`,
+        }
+        return updated
+      })
     } finally {
       setStreaming(false)
     }

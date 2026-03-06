@@ -379,15 +379,19 @@ COACHING-PRINCIPER:
     ai_client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 
     async def stream():
-        async with ai_client.messages.stream(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
-            system=system_prompt,
-            messages=messages,
-        ) as stream:
-            async for text in stream.text_stream:
-                yield f"data: {json.dumps({'text': text})}\n\n"
-        yield "data: [DONE]\n\n"
+        try:
+            async with ai_client.messages.stream(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1024,
+                system=system_prompt,
+                messages=messages,
+            ) as s:
+                async for text in s.text_stream:
+                    yield f"data: {json.dumps({'text': text})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        finally:
+            yield "data: [DONE]\n\n"
 
     return StreamingResponse(stream(), media_type="text/event-stream")
 
