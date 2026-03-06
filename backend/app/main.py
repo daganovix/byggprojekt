@@ -46,6 +46,7 @@ async def _save_projects(projects: list[dict]) -> int:
                 )
             if existing:
                 continue
+            p.pop("default_type", None)
             db.add(ProjectDB(**p))
             new_count += 1
         await db.commit()
