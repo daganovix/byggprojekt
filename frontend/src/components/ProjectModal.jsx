@@ -753,9 +753,11 @@ const TYPE_PILL = {
 // ── Updates Panel ─────────────────────────────────────────────────────────────
 
 const PERIODS = [
-  { key: 'day',   label: '1 dag' },
-  { key: 'week',  label: '1 vecka' },
-  { key: 'month', label: '1 månad' },
+  { key: 'day',      label: '1 dag' },
+  { key: 'week',     label: '1 vecka' },
+  { key: 'month',    label: '1 månad' },
+  { key: '3months',  label: '3 månader' },
+  { key: '6months',  label: '6 månader' },
 ]
 
 function UpdateItem({ update, projectId }) {
@@ -864,7 +866,7 @@ function UpdatesPanel({ project, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
-            <h3 className="font-semibold text-gray-900">Senaste uppdateringar</h3>
+            <h3 className="font-semibold text-gray-900">Uppdateringar</h3>
             <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{project.name}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-2xl leading-none" aria-label="Stäng">×</button>
@@ -1156,7 +1158,7 @@ export default function ProjectModal({ project: p, onClose }) {
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-colors"
                 title="Senaste nyheter om projektet"
               >
-                <IconClock /><span>Senaste uppdateringar</span>
+                <IconClock /><span>Uppdateringar</span>
               </button>
               <HeatMeter projectId={p.id} />
             </div>

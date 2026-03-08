@@ -410,7 +410,7 @@ COACHING-PRINCIPER:
 @app.get("/api/projects/{project_id}/updates")
 async def get_project_updates(
     project_id: int,
-    period: str = Query("week", pattern="^(day|week|month)$"),
+    period: str = Query("week", pattern="^(day|week|month|3months|6months)$"),
     db: AsyncSession = Depends(get_db),
 ):
     row = await db.get(ProjectDB, project_id)
@@ -436,7 +436,7 @@ async def get_project_updates(
     except ET.ParseError:
         return {"updates": [], "query": query}
 
-    period_days = {"day": 1, "week": 7, "month": 30}.get(period, 7)
+    period_days = {"day": 1, "week": 7, "month": 30, "3months": 90, "6months": 180}.get(period, 7)
     cutoff = __import__("datetime").datetime.now(timezone.utc) - timedelta(days=period_days)
 
     items = []
