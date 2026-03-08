@@ -386,23 +386,185 @@ PROJECTS = [
         "source_name": "Byggindustrin",
         "published_at": datetime(2024, 3, 10),
     },
+    # ── Norway ───────────────────────────────────────────────────────────────
+    {
+        "name": "Fornebubanen – ny T-banelinje Oslo",
+        "type": "Infrastruktur",
+        "description": (
+            "Ny T-banelinje fra Majorstuen til Fornebu med seks nye stasjoner. "
+            "Prosjektet er et samarbeid mellom Oslo kommune og Akershus fylkeskommune "
+            "og vil betjene 50 000 daglige passasjerer."
+        ),
+        "location": "Oslo",
+        "region": "Oslo",
+        "country": "Norge",
+        "lat": 59.9139, "lng": 10.7522,
+        "participants": [
+            {"name": "Ruter AS", "role": "Beställare", "contact": "post@ruter.no"},
+            {"name": "Skanska Norge", "role": "Totalentreprenör", "contact": ""},
+            {"name": "Norconsult", "role": "Konstruktör", "contact": ""},
+        ],
+        "estimated_cost": "19 miljarder kr",
+        "cost_value_msek": 19000.0,
+        "timeline_start": "2022",
+        "timeline_end": "2029",
+        "status": "Pågående",
+        "source_url": "",
+        "source_name": "Statsbygg – Nyheter",
+        "published_at": datetime(2024, 2, 15),
+    },
+    {
+        "name": "Stavanger universitetssykehus – nybygg",
+        "type": "Offentligt",
+        "description": (
+            "Stort nybygg ved Stavanger universitetssykehus med moderne operasjons- "
+            "og intensivavdelinger. Prosjektet skal øke kapasiteten og modernisere "
+            "sykehustilbudet for Rogaland-regionen."
+        ),
+        "location": "Stavanger",
+        "region": "Rogaland",
+        "country": "Norge",
+        "lat": 58.9700, "lng": 5.7331,
+        "participants": [
+            {"name": "Helse Vest RHF", "role": "Beställare", "contact": ""},
+            {"name": "PEAB Norge", "role": "Totalentreprenör", "contact": ""},
+            {"name": "Sweco Norge", "role": "Konstruktör", "contact": ""},
+        ],
+        "estimated_cost": "8 miljarder kr",
+        "cost_value_msek": 8000.0,
+        "timeline_start": "2023",
+        "timeline_end": "2030",
+        "status": "Planerat",
+        "source_url": "",
+        "source_name": "Bygg.no",
+        "published_at": datetime(2024, 4, 1),
+    },
+    {
+        "name": "Bergen Bybane – forlengelse til Åsane",
+        "type": "Infrastruktur",
+        "description": (
+            "Forlengelse av Bergens bybane nordover til Åsane bydel. "
+            "Prosjektet inkluderer ny tunnel under Bryggen og seks nye stopp. "
+            "Vil knytte nordre bydeler tettere til sentrum."
+        ),
+        "location": "Bergen",
+        "region": "Vestland",
+        "country": "Norge",
+        "lat": 60.3913, "lng": 5.3221,
+        "participants": [
+            {"name": "Bergen kommune", "role": "Beställare", "contact": ""},
+            {"name": "NCC Norge", "role": "Totalentreprenör", "contact": ""},
+            {"name": "Rambøll Norge", "role": "Konstruktör", "contact": ""},
+        ],
+        "estimated_cost": "12 miljarder kr",
+        "cost_value_msek": 12000.0,
+        "timeline_start": "2026",
+        "timeline_end": "2032",
+        "status": "Planerat",
+        "source_url": "",
+        "source_name": "Bygg.no",
+        "published_at": datetime(2024, 5, 20),
+    },
+    # ── Denmark ──────────────────────────────────────────────────────────────
+    {
+        "name": "Lynetteholm – ny bydel i København",
+        "type": "Bostäder",
+        "description": (
+            "Lynetteholm er et nyt kunstigt ø-projekt i Københavns havn med plads til "
+            "35 000 boliger og 35 000 arbejdspladser. Projektet inkluderer en ny metro "
+            "og vejforbindelser og skal aflaste den eksisterende by."
+        ),
+        "location": "København",
+        "region": "Hovedstaden",
+        "country": "Danmark",
+        "lat": 55.6900, "lng": 12.6100,
+        "participants": [
+            {"name": "By & Havn", "role": "Byggherre", "contact": ""},
+            {"name": "MT Højgaard", "role": "Totalentreprenör", "contact": ""},
+            {"name": "Rambøll Danmark", "role": "Konstruktör", "contact": ""},
+        ],
+        "estimated_cost": "90 miljarder kr",
+        "cost_value_msek": 90000.0,
+        "timeline_start": "2025",
+        "timeline_end": "2070",
+        "status": "Planerat",
+        "source_url": "",
+        "source_name": "Byggeforum",
+        "published_at": datetime(2024, 1, 10),
+    },
+    {
+        "name": "Aarhus Letbane – etape 2 forlængelse",
+        "type": "Infrastruktur",
+        "description": (
+            "Forlængelse af Aarhus Letbane med nye linjeføringer mod nord og syd. "
+            "Projektet skal øge den kollektive trafik og reducere CO2-udledning "
+            "i Østjylland med 15 000 passagerer dagligt."
+        ),
+        "location": "Aarhus",
+        "region": "Midtjylland",
+        "country": "Danmark",
+        "lat": 56.1629, "lng": 10.2039,
+        "participants": [
+            {"name": "Midttrafik", "role": "Beställare", "contact": ""},
+            {"name": "Aarsleff", "role": "Totalentreprenör", "contact": ""},
+            {"name": "COWI Danmark", "role": "Konstruktör", "contact": ""},
+        ],
+        "estimated_cost": "4,2 miljarder kr",
+        "cost_value_msek": 4200.0,
+        "timeline_start": "2025",
+        "timeline_end": "2030",
+        "status": "Planerat",
+        "source_url": "",
+        "source_name": "Vejdirektoratet – Nyheder",
+        "published_at": datetime(2024, 6, 5),
+    },
+    {
+        "name": "Odense Universitetshospital – nyt OUH",
+        "type": "Offentligt",
+        "description": (
+            "Nyt Odense Universitetshospital er et af de største byggeprojekter i "
+            "dansk hospitalhistorie. Det nye supersygehus skal samle speciallæger "
+            "og avanceret medicinsk udstyr under ét tag."
+        ),
+        "location": "Odense",
+        "region": "Syddanmark",
+        "country": "Danmark",
+        "lat": 55.3800, "lng": 10.3600,
+        "participants": [
+            {"name": "Region Syddanmark", "role": "Beställare", "contact": ""},
+            {"name": "Skanska Danmark", "role": "Totalentreprenör", "contact": ""},
+            {"name": "Henning Larsen Architects", "role": "Arkitekt", "contact": ""},
+        ],
+        "estimated_cost": "11,5 miljarder kr",
+        "cost_value_msek": 11500.0,
+        "timeline_start": "2020",
+        "timeline_end": "2027",
+        "status": "Pågående",
+        "source_url": "",
+        "source_name": "Byggeforum",
+        "published_at": datetime(2024, 2, 28),
+    },
 ]
 
 
 async def seed():
     await init_db()
     async with SessionLocal() as db:
-        # Check if already seeded
-        from sqlalchemy import select, func
+        from sqlalchemy import select
         from app.models import ProjectDB
-        count = await db.scalar(select(func.count()).select_from(ProjectDB))
-        if count and count > 0:
-            print(f"Database already has {count} projects — skipping seed.")
-            return
+        added = 0
         for p in PROJECTS:
+            # Upsert by name — skip if already exists
+            existing = await db.scalar(select(ProjectDB).where(ProjectDB.name == p["name"]))
+            if existing:
+                continue
             db.add(ProjectDB(**p))
+            added += 1
         await db.commit()
-        print(f"Seeded {len(PROJECTS)} projects.")
+        if added:
+            print(f"Seeded {added} new projects.")
+        else:
+            print("All seed projects already exist — nothing added.")
 
 
 if __name__ == "__main__":
