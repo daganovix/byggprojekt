@@ -316,6 +316,81 @@ function SalesCoach({ project }) {
   )
 }
 
+// ── Quote Modal ───────────────────────────────────────────────────────────────
+
+function QuoteModal({ name, projectName, projectLocation, onClose }) {
+  const [description, setDescription] = useState('')
+  const [price, setPrice] = useState('')
+  const [files, setFiles] = useState([])
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    const lines = ['Hej,', '']
+    if (description) lines.push('OFFERTBESKRIVNING:', description, '')
+    if (price) lines.push(`OFFERTPRIS: ${price}`, '')
+    lines.push('Med vänlig hälsning,\n[DITT NAMN]\n[FÖRETAG]\n[TELEFON]')
+    const body = lines.join('\n')
+    const subject = `Offert – ${projectName}${projectLocation ? ` (${projectLocation})` : ''}`
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    onClose()
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[3500] flex items-center justify-center p-4 bg-black/60"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h3 className="font-semibold text-gray-900">Lämna offert</h3>
+            <p className="text-xs text-gray-400 mt-0.5">till {name} · {projectName}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-2xl leading-none" aria-label="Stäng">×</button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Beskrivning</label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={4}
+              placeholder="Beskriv er tjänst, produkt eller lösning…"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-orange-400 resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Offertpris</label>
+            <input
+              type="text"
+              value={price}
+              onChange={e => setPrice(e.target.value)}
+              placeholder="t.ex. 150 000 kr exkl. moms"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-orange-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Bifoga filer</label>
+            <input
+              type="file"
+              multiple
+              onChange={e => setFiles([...e.target.files])}
+              className="w-full text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+            />
+            {files.length > 0 && (
+              <p className="text-xs text-gray-400 mt-1">{files.length} fil(er) vald(a) – bifogas i e-postprogrammet</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Avbryt</button>
+            <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors">Skapa offertmail</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Per-participant contact actions ──────────────────────────────────────────
 
 // Role-specific LinkedIn search keywords
@@ -413,79 +488,89 @@ function buildParticipantActions(name, role, projectName, projectLocation) {
 }
 
 function ParticipantActions({ name, role, projectName, projectLocation, compact = false }) {
+  const [quoteOpen, setQuoteOpen] = useState(false)
   const { linkedinHref, emailHref } = buildParticipantActions(name, role, projectName, projectLocation)
 
   const alertsHref = `https://www.google.com/alerts?q=${encodeURIComponent(name)}&hl=sv`
   const moreProjectsHref = `https://www.google.com/search?q=${encodeURIComponent(`"${name}" byggprojekt upphandling`)}`
-  const quoteHref = `mailto:?subject=${encodeURIComponent(`Offertförfrågan – ${projectName}`)}&body=${encodeURIComponent(`Hej ${name},\n\nJag kontaktar dig angående projektet ${projectName}${projectLocation ? ` i ${projectLocation}` : ''}.\n\nVi har kompetens inom [TJÄNST/PRODUKT] och önskar lämna en offert för ert projekt. Kan vi boka ett kort samtal för att diskutera era behov?\n\nMed vänlig hälsning,\n[DITT NAMN]\n[FÖRETAG]\n[TELEFON]`)}`
 
   if (compact) {
     return (
-      <div className="flex gap-1 mt-1.5">
-        <a href={linkedinHref} target="_blank" rel="noopener noreferrer" title={`Hitta beslutsfattare på ${name}`}
-          className="w-6 h-6 rounded-full flex items-center justify-center text-[#0a66c2] bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-colors">
-          <IconLinkedIn />
-        </a>
-        <a href={emailHref} title={`E-postmall till ${name}`}
-          className="w-6 h-6 rounded-full flex items-center justify-center text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition-colors">
-          <IconMail />
-        </a>
-        <a href={alertsHref} target="_blank" rel="noopener noreferrer" title={`Bevaka nyheter om ${name}`}
-          className="w-6 h-6 rounded-full flex items-center justify-center text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-100 transition-colors">
-          <IconBell />
-        </a>
-        <a href={moreProjectsHref} target="_blank" rel="noopener noreferrer" title={`Fler projekt med ${name}`}
-          className="w-6 h-6 rounded-full flex items-center justify-center text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-colors">
-          <IconBuilding />
-        </a>
-      </div>
+      <>
+        <div className="flex gap-1">
+          <a href={linkedinHref} target="_blank" rel="noopener noreferrer" title={`Hitta beslutsfattare på ${name}`}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-[#0a66c2] bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-colors">
+            <IconLinkedIn />
+          </a>
+          <a href={emailHref} title={`E-postmall till ${name}`}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition-colors">
+            <IconMail />
+          </a>
+          <a href={alertsHref} target="_blank" rel="noopener noreferrer" title={`Bevaka nyheter om ${name}`}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-100 transition-colors">
+            <IconBell />
+          </a>
+          <a href={moreProjectsHref} target="_blank" rel="noopener noreferrer" title={`Fler projekt med ${name}`}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-colors">
+            <IconBuilding />
+          </a>
+          <button onClick={() => setQuoteOpen(true)} title={`Lämna offert till ${name}`}
+            className="w-6 h-6 rounded-full flex items-center justify-center text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-100 transition-colors">
+            <IconFileText />
+          </button>
+        </div>
+        {quoteOpen && <QuoteModal name={name} projectName={projectName} projectLocation={projectLocation} onClose={() => setQuoteOpen(false)} />}
+      </>
     )
   }
 
   return (
-    <div className="flex flex-wrap gap-1.5 mt-2">
-      <a
-        href={linkedinHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={`Hitta beslutsfattare på ${name}`}
-        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#0a66c2] bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-colors"
-      >
-        <IconLinkedIn /><span>Beslutsfattare</span>
-      </a>
-      <a
-        href={emailHref}
-        title={`E-postmall till ${name}`}
-        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition-colors"
-      >
-        <IconMail /><span>E-postmall</span>
-      </a>
-      <a
-        href={alertsHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={`Bevaka nyheter om ${name}`}
-        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-100 transition-colors"
-      >
-        <IconBell /><span>Bevaka bolaget</span>
-      </a>
-      <a
-        href={moreProjectsHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={`Fler projekt med ${name}`}
-        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-colors"
-      >
-        <IconBuilding /><span>Fler projekt</span>
-      </a>
-      <a
-        href={quoteHref}
-        title={`Lämna offert till ${name}`}
-        className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-100 transition-colors"
-      >
-        <IconFileText /><span>Lämna offert</span>
-      </a>
-    </div>
+    <>
+      <div className="flex flex-wrap gap-1.5 mt-2">
+        <a
+          href={linkedinHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Hitta beslutsfattare på ${name}`}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-[#0a66c2] bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-colors"
+        >
+          <IconLinkedIn /><span>Beslutsfattare</span>
+        </a>
+        <a
+          href={emailHref}
+          title={`E-postmall till ${name}`}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition-colors"
+        >
+          <IconMail /><span>E-postmall</span>
+        </a>
+        <a
+          href={alertsHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Bevaka nyheter om ${name}`}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-100 transition-colors"
+        >
+          <IconBell /><span>Bevaka bolaget</span>
+        </a>
+        <a
+          href={moreProjectsHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Fler projekt med ${name}`}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-colors"
+        >
+          <IconBuilding /><span>Fler projekt</span>
+        </a>
+        <button
+          onClick={() => setQuoteOpen(true)}
+          title={`Lämna offert till ${name}`}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-100 transition-colors"
+        >
+          <IconFileText /><span>Lämna offert</span>
+        </button>
+      </div>
+      {quoteOpen && <QuoteModal name={name} projectName={projectName} projectLocation={projectLocation} onClose={() => setQuoteOpen(false)} />}
+    </>
   )
 }
 
@@ -587,36 +672,30 @@ function PredictedParticipants({ projectId, projectName, projectLocation }) {
           Roller som saknas: <span className="font-medium text-gray-500">{data.missing_roles.join(', ')}</span>
         </p>
       )}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {data.predictions.map((pred, i) => {
           const conf = CONFIDENCE_STYLE[pred.confidence] || CONFIDENCE_STYLE.låg
           return (
-            <div key={i} className={`p-3 rounded-lg border border-dashed ${conf.bg}`}>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-white border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 font-bold text-sm shrink-0">
-                  {pred.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-gray-700">{pred.name}</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${conf.text} bg-white border`}>
-                      {conf.label} sannolikhet
-                    </span>
-                  </div>
-                  {pred.likely_role && (
-                    <div className="text-sm text-gray-500 mt-0.5">{pred.likely_role}</div>
-                  )}
-                  <div className="text-xs text-gray-400 mt-0.5 italic">{pred.basis}</div>
-                </div>
+            <div key={i} className={`px-3 py-2 rounded-lg border border-dashed ${conf.bg}`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-sm text-gray-700">{pred.name}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${conf.text} bg-white border`}>
+                  {conf.label}
+                </span>
+                {pred.confidence === 'hög' && (
+                  <ParticipantActions
+                    name={pred.name}
+                    role={pred.likely_role || ''}
+                    projectName={projectName}
+                    projectLocation={projectLocation}
+                    compact
+                  />
+                )}
               </div>
-              {pred.confidence === 'hög' && (
-                <ParticipantActions
-                  name={pred.name}
-                  role={pred.likely_role || ''}
-                  projectName={projectName}
-                  projectLocation={projectLocation}
-                  compact
-                />
+              {(pred.likely_role || pred.basis) && (
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {[pred.likely_role, pred.basis].filter(Boolean).join(' · ')}
+                </div>
               )}
             </div>
           )
