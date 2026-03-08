@@ -370,11 +370,34 @@ function buildParticipantActions(name, role, projectName, projectLocation) {
   return { linkedinHref, emailHref }
 }
 
-function ParticipantActions({ name, role, projectName, projectLocation }) {
+function ParticipantActions({ name, role, projectName, projectLocation, compact = false }) {
   const { linkedinHref, emailHref } = buildParticipantActions(name, role, projectName, projectLocation)
 
   const alertsHref = `https://www.google.com/alerts?q=${encodeURIComponent(name)}&hl=sv`
   const moreProjectsHref = `https://www.google.com/search?q=${encodeURIComponent(`"${name}" byggprojekt upphandling`)}`
+
+  if (compact) {
+    return (
+      <div className="flex gap-1 mt-1.5">
+        <a href={linkedinHref} target="_blank" rel="noopener noreferrer" title={`Hitta beslutsfattare på ${name}`}
+          className="w-6 h-6 rounded-full flex items-center justify-center text-[#0a66c2] bg-blue-50 hover:bg-blue-100 border border-blue-100 transition-colors">
+          <IconLinkedIn />
+        </a>
+        <a href={emailHref} title={`E-postmall till ${name}`}
+          className="w-6 h-6 rounded-full flex items-center justify-center text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition-colors">
+          <IconMail />
+        </a>
+        <a href={alertsHref} target="_blank" rel="noopener noreferrer" title={`Bevaka nyheter om ${name}`}
+          className="w-6 h-6 rounded-full flex items-center justify-center text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-100 transition-colors">
+          <IconBell />
+        </a>
+        <a href={moreProjectsHref} target="_blank" rel="noopener noreferrer" title={`Fler projekt med ${name}`}
+          className="w-6 h-6 rounded-full flex items-center justify-center text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-colors">
+          <IconBuilding />
+        </a>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-wrap gap-1.5 mt-2">
@@ -460,20 +483,20 @@ function RecommendedActions({ p }) {
       <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">
         Rekommenderade åtgärder
       </h3>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="flex gap-3">
         {actions.map(a => (
           <a
             key={a.label}
             href={a.href}
             target="_blank"
             rel="noopener noreferrer"
-            className={`flex items-start gap-2.5 p-3 rounded-lg border transition-colors ${a.style}`}
+            title={a.sub}
+            className={`flex flex-col items-center gap-1.5 w-14 transition-colors group`}
           >
-            <span className="shrink-0 mt-0.5">{a.icon}</span>
-            <div className="min-w-0">
-              <div className="font-medium text-sm leading-tight">{a.label}</div>
-              <div className="text-xs opacity-60 mt-0.5 leading-tight truncate">{a.sub}</div>
-            </div>
+            <span className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${a.style}`}>
+              {a.icon}
+            </span>
+            <span className="text-[10px] text-center text-gray-500 leading-tight group-hover:text-gray-700 transition-colors">{a.label}</span>
           </a>
         ))}
       </div>
@@ -542,6 +565,7 @@ function PredictedParticipants({ projectId, projectName, projectLocation }) {
                   role={pred.likely_role || ''}
                   projectName={projectName}
                   projectLocation={projectLocation}
+                  compact
                 />
               )}
             </div>
