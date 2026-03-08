@@ -101,6 +101,40 @@ function IconClock() {
   )
 }
 
+function IconFlame() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+      <path d="M12 2c0 0-5 5.5-5 10a5 5 0 0 0 10 0c0-4.5-5-10-5-10zm0 14a3 3 0 0 1-3-3c0-2 1.5-4 3-6 1.5 2 3 4 3 6a3 3 0 0 1-3 3z"/>
+    </svg>
+  )
+}
+
+function IconPaperclip() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+    </svg>
+  )
+}
+
+function IconImage() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+      <rect width="18" height="18" x="3" y="3" rx="2"/>
+      <circle cx="9" cy="9" r="2"/>
+      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+    </svg>
+  )
+}
+
+function IconTrash() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    </svg>
+  )
+}
+
 function IconChevronDown() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
@@ -881,6 +915,194 @@ function UpdatesPanel({ project, onClose }) {
 }
 
 
+// ── Heat Meter ────────────────────────────────────────────────────────────────
+
+const HEAT_LEVELS = [
+  { min: 0,  max: 1,  label: 'Okänd',  color: 'text-gray-400', bg: 'bg-gray-100', bars: 0 },
+  { min: 1,  max: 3,  label: 'Kall',   color: 'text-blue-500', bg: 'bg-blue-50',  bars: 1 },
+  { min: 3,  max: 7,  label: 'Ljummen',color: 'text-yellow-600',bg: 'bg-yellow-50',bars: 2 },
+  { min: 7,  max: 15, label: 'Varm',   color: 'text-orange-500',bg: 'bg-orange-50',bars: 3 },
+  { min: 15, max: Infinity, label: 'Het', color: 'text-red-600', bg: 'bg-red-50', bars: 4 },
+]
+
+function HeatMeter({ projectId }) {
+  const [count, setCount] = useState(null)
+
+  useEffect(() => {
+    axios.post(`/api/projects/${projectId}/view`)
+      .then(r => setCount(r.data.count))
+      .catch(() => setCount(null))
+  }, [projectId])
+
+  if (count === null) return null
+  const level = HEAT_LEVELS.findLast(l => count >= l.min) || HEAT_LEVELS[0]
+
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${level.color} ${level.bg} border-current/20`}
+      title={`Öppnat ${count} gång${count !== 1 ? 'er' : ''}`}>
+      <span className="flex gap-0.5">
+        {[1,2,3,4].map(i => (
+          <span key={i} className={i <= level.bars ? '' : 'opacity-20'}>
+            <IconFlame />
+          </span>
+        ))}
+      </span>
+      <span>{level.label}</span>
+      <span className="opacity-60">·{count}</span>
+    </div>
+  )
+}
+
+// ── Notes Panel ───────────────────────────────────────────────────────────────
+
+const LS_FILES_KEY = (id) => `project_attachments_${id}`
+
+function NotesPanel({ projectId }) {
+  const [text, setText] = useState('')
+  const [saved, setSaved] = useState(true)
+  const [attachments, setAttachments] = useState([])
+  const [lightbox, setLightbox] = useState(null)
+  const fileRef = useRef(null)
+  const photoRef = useRef(null)
+  const timerRef = useRef(null)
+
+  // Load notes text from backend + attachments from localStorage
+  useEffect(() => {
+    axios.get(`/api/projects/${projectId}/notes`)
+      .then(r => { setText(r.data.content); setSaved(true) })
+      .catch(() => {})
+    const stored = localStorage.getItem(LS_FILES_KEY(projectId))
+    if (stored) {
+      try { setAttachments(JSON.parse(stored)) } catch {}
+    }
+  }, [projectId])
+
+  // Auto-save text 1.5 s after last keystroke
+  function handleChange(e) {
+    setText(e.target.value)
+    setSaved(false)
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      axios.put(`/api/projects/${projectId}/notes`, { content: e.target.value })
+        .then(() => setSaved(true))
+        .catch(() => {})
+    }, 1500)
+  }
+
+  function addFiles(files, isImage) {
+    const readers = [...files].map(file => new Promise(resolve => {
+      const fr = new FileReader()
+      fr.onload = e => resolve({ name: file.name, type: file.type, data: e.target.result, isImage })
+      fr.readAsDataURL(file)
+    }))
+    Promise.all(readers).then(newFiles => {
+      setAttachments(prev => {
+        const updated = [...prev, ...newFiles]
+        localStorage.setItem(LS_FILES_KEY(projectId), JSON.stringify(updated))
+        return updated
+      })
+    })
+  }
+
+  function removeAttachment(idx) {
+    setAttachments(prev => {
+      const updated = prev.filter((_, i) => i !== idx)
+      localStorage.setItem(LS_FILES_KEY(projectId), JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  return (
+    <div className="border-t border-gray-100 pt-4">
+      <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Mina anteckningar</h3>
+      <textarea
+        value={text}
+        onChange={handleChange}
+        rows={4}
+        placeholder="Skriv anteckningar om projektet…"
+        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 resize-none transition-colors"
+      />
+      <div className="flex items-center justify-between mt-1 mb-3">
+        <div className="flex gap-2">
+          <button
+            onClick={() => fileRef.current.click()}
+            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <IconPaperclip /><span>Bifoga fil</span>
+          </button>
+          <button
+            onClick={() => photoRef.current.click()}
+            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <IconImage /><span>Lägg till foto</span>
+          </button>
+          <input ref={fileRef} type="file" multiple className="hidden"
+            onChange={e => { addFiles(e.target.files, false); e.target.value = '' }} />
+          <input ref={photoRef} type="file" accept="image/*" multiple className="hidden"
+            onChange={e => { addFiles(e.target.files, true); e.target.value = '' }} />
+        </div>
+        <span className={`text-xs transition-colors ${saved ? 'text-gray-300' : 'text-amber-500'}`}>
+          {saved ? 'Sparat' : 'Sparar…'}
+        </span>
+      </div>
+
+      {attachments.length > 0 && (
+        <div className="space-y-1.5">
+          {/* Images grid */}
+          {attachments.some(a => a.isImage) && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {attachments.filter(a => a.isImage).map((a, idx) => {
+                const realIdx = attachments.indexOf(a)
+                return (
+                  <div key={idx} className="relative group w-20 h-20">
+                    <img
+                      src={a.data}
+                      alt={a.name}
+                      className="w-full h-full object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => setLightbox(a.data)}
+                    />
+                    <button
+                      onClick={() => removeAttachment(realIdx)}
+                      className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-white/90 text-red-500 hidden group-hover:flex items-center justify-center border border-gray-200 hover:bg-red-50 transition-colors"
+                    >
+                      <IconTrash />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {/* File list */}
+          {attachments.filter(a => !a.isImage).map((a, idx) => {
+            const realIdx = attachments.indexOf(a)
+            return (
+              <div key={idx} className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <IconPaperclip />
+                  <a href={a.data} download={a.name} className="text-xs text-blue-600 hover:underline truncate">{a.name}</a>
+                </div>
+                <button onClick={() => removeAttachment(realIdx)} className="text-gray-400 hover:text-red-500 shrink-0 transition-colors">
+                  <IconTrash />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[4000] flex items-center justify-center bg-black/80"
+          onClick={() => setLightbox(null)}
+        >
+          <img src={lightbox} alt="" className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl" />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Field({ label, value }) {
   if (!value) return null
   return (
@@ -932,6 +1154,7 @@ export default function ProjectModal({ project: p, onClose }) {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <HeatMeter projectId={p.id} />
             <button
               onClick={() => setUpdatesOpen(true)}
               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-colors"
@@ -1034,6 +1257,9 @@ export default function ProjectModal({ project: p, onClose }) {
               </a>
             </div>
           )}
+
+          {/* Notes */}
+          <NotesPanel projectId={p.id} />
         </div>
       </div>
     </div>

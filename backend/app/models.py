@@ -73,3 +73,20 @@ class StatsOut(BaseModel):
     by_type: dict
     by_status: dict
     by_region: dict
+
+
+class ProjectNote(Base):
+    __tablename__ = "project_notes"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, nullable=False, index=True, unique=True)
+    content = Column(Text, default="")
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ProjectView(Base):
+    __tablename__ = "project_views"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, nullable=False, index=True, unique=True)
+    count = Column(Integer, default=0)

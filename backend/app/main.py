@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.database import init_db, get_db, SessionLocal
-from app.models import ProjectDB, ProjectOut, ProjectList, StatsOut
+from app.models import ProjectDB, ProjectOut, ProjectList, StatsOut, ProjectNote, ProjectView
 from app.scrapers.feed_scraper import scrape_all_feeds
 from app.scrapers.permit_scraper import scrape_permits
 from app.scrapers.api_scraper import scrape_api_sources
@@ -503,6 +503,41 @@ async def analyze_update(
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+class NoteBody(BaseModel):
+    content: str
+
+
+@app.get("/api/projects/{project_id}/notes")
+async def get_notes(project_id: int, db: AsyncSession = Depends(get_db)):
+    row = await db.scalar(select(ProjectNote).where(ProjectNote.project_id == project_id))
+    return {"content": row.content if row else ""}
+
+
+@app.put("/api/projects/{project_id}/notes")
+async def save_notes(project_id: int, body: NoteBody, db: AsyncSession = Depends(get_db)):
+    row = await db.scalar(select(ProjectNote).where(ProjectNote.project_id == project_id))
+    if row:
+        row.content = body.content
+        row.updated_at = __import__("datetime").datetime.utcnow()
+    else:
+        row = ProjectNote(project_id=project_id, content=body.content)
+        db.add(row)
+    await db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/projects/{project_id}/view")
+async def record_view(project_id: int, db: AsyncSession = Depends(get_db)):
+    row = await db.scalar(select(ProjectView).where(ProjectView.project_id == project_id))
+    if row:
+        row.count += 1
+    else:
+        row = ProjectView(project_id=project_id, count=1)
+        db.add(row)
+    await db.commit()
+    return {"count": row.count}
 
 
 @app.get("/api/filters")
