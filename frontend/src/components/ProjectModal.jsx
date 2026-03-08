@@ -548,10 +548,6 @@ function ParticipantActions({ name, role, projectName, projectLocation, compact 
             className="w-6 h-6 rounded-full flex items-center justify-center text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-colors">
             <IconBuilding />
           </a>
-          <button onClick={() => setQuoteOpen(true)} title={`Lämna offert till ${name}`}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-100 transition-colors">
-            <IconFileText />
-          </button>
         </div>
         {quoteOpen && <QuoteModal name={name} projectName={projectName} projectLocation={projectLocation} onClose={() => setQuoteOpen(false)} />}
       </>
@@ -1153,22 +1149,24 @@ export default function ProjectModal({ project: p, onClose }) {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setUpdatesOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-colors"
+                title="Senaste nyheter om projektet"
+              >
+                <IconClock /><span>Senaste uppdateringar</span>
+              </button>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
+                aria-label="Stäng"
+              >
+                ×
+              </button>
+            </div>
             <HeatMeter projectId={p.id} />
-            <button
-              onClick={() => setUpdatesOpen(true)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-colors"
-              title="Senaste nyheter om projektet"
-            >
-              <IconClock /><span>Senaste uppdateringar</span>
-            </button>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
-              aria-label="Stäng"
-            >
-              ×
-            </button>
           </div>
         </div>
 
