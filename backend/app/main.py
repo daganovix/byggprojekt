@@ -2,8 +2,15 @@ import asyncio
 import json
 import logging
 import os
+import re
+import urllib.parse
+import xml.etree.ElementTree as ET
 from contextlib import asynccontextmanager
+from datetime import timedelta, timezone
+from email.utils import parsedate_to_datetime
 from typing import Optional
+
+import httpx
 
 import anthropic
 from fastapi import FastAPI, Depends, Query, HTTPException
@@ -386,6 +393,107 @@ COACHING-PRINCIPER:
                 max_tokens=1024,
                 system=system_prompt,
                 messages=messages,
+            ) as s:
+                async for text in s.text_stream:
+                    yield f"data: {json.dumps({'text': text})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        finally:
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+@app.get("/api/projects/{project_id}/updates")
+async def get_project_updates(
+    project_id: int,
+    period: str = Query("week", pattern="^(day|week|month)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    row = await db.get(ProjectDB, project_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    query = " ".join(filter(None, [row.name, row.location or row.region]))
+    rss_url = (
+        f"https://news.google.com/rss/search?"
+        f"q={urllib.parse.quote(query)}&hl=sv&gl=SE&ceid=SE:sv"
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            resp = await client.get(rss_url)
+            resp.raise_for_status()
+            xml_text = resp.text
+    except Exception as e:
+        return {"updates": [], "query": query, "error": str(e)}
+
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
+        return {"updates": [], "query": query}
+
+    period_days = {"day": 1, "week": 7, "month": 30}.get(period, 7)
+    cutoff = __import__("datetime").datetime.now(timezone.utc) - timedelta(days=period_days)
+
+    items = []
+    for item in root.findall(".//item")[:40]:
+        title = item.findtext("title") or ""
+        link = item.findtext("link") or ""
+        desc_raw = item.findtext("description") or ""
+        pub_str = item.findtext("pubDate") or ""
+        desc = re.sub(r"<[^>]+>", "", desc_raw).strip()
+
+        try:
+            pub_dt = parsedate_to_datetime(pub_str)
+            if pub_dt < cutoff:
+                continue
+            pub_fmt = pub_dt.strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            pub_fmt = pub_str
+
+        items.append({
+            "title": title,
+            "description": desc,
+            "url": link,
+            "published": pub_fmt,
+        })
+
+    return {"updates": items, "query": query}
+
+
+class UpdateAnalysisRequest(BaseModel):
+    title: str
+    description: str = ""
+
+
+@app.post("/api/projects/{project_id}/analyze-update")
+async def analyze_update(
+    project_id: int,
+    body: UpdateAnalysisRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    row = await db.get(ProjectDB, project_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    system_prompt = (
+        f'Du är en erfaren B2B-säljcoach specialiserad på den svenska byggbranschen.\n'
+        f'En säljare har hittat en nyhet kopplad till projektet "{row.name}" '
+        f'({row.type or ""}, {row.status or ""}) i {row.location or row.region or "Sverige"}.\n'
+        f'Förklara kort (2–3 meningar) vad nyheten kan innebära för projektet och ge '
+        f'ett konkret råd om hur säljaren bör agera. Svara på svenska.'
+    )
+    message = f"Nyhet: {body.title}\n\n{body.description}"
+    ai_client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+
+    async def stream():
+        try:
+            async with ai_client.messages.stream(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=400,
+                system=system_prompt,
+                messages=[{"role": "user", "content": message}],
             ) as s:
                 async for text in s.text_stream:
                     yield f"data: {json.dumps({'text': text})}\n\n"
