@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
+import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -1101,6 +1102,27 @@ function NotesPanel({ projectId }) {
   )
 }
 
+function MiniMap({ lat, lng }) {
+  if (!lat || !lng) return null
+  return (
+    <div className="shrink-0 rounded-xl overflow-hidden border border-gray-200 shadow-sm" style={{ width: 180, height: 180 }}>
+      <MapContainer
+        center={[lat, lng]}
+        zoom={13}
+        style={{ width: '100%', height: '100%' }}
+        dragging={false}
+        scrollWheelZoom={false}
+        zoomControl={false}
+        doubleClickZoom={false}
+        attributionControl={false}
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Marker position={[lat, lng]} />
+      </MapContainer>
+    </div>
+  )
+}
+
 function Field({ label, value }) {
   if (!value) return null
   return (
@@ -1132,7 +1154,7 @@ export default function ProjectModal({ project: p, onClose }) {
       className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/50"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -1179,15 +1201,18 @@ export default function ProjectModal({ project: p, onClose }) {
             <p className="text-gray-700 leading-relaxed">{p.description}</p>
           )}
 
-          {/* Key facts */}
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Plats" value={p.location !== p.region ? p.location : ''} />
-            <Field label="Region" value={p.region} />
-            <Field label="Beräknad kostnad" value={p.estimated_cost} />
-            <Field label="Tidplan" value={timeline} />
-            <Field label="Publicerad" value={new Date(p.published_at).toLocaleDateString('sv-SE')} />
-            <Field label="Källa" value={p.source_name} />
-          </dl>
+          {/* Key facts + mini map */}
+          <div className="flex gap-5 items-start">
+            <dl className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Plats" value={p.location !== p.region ? p.location : ''} />
+              <Field label="Region" value={p.region} />
+              <Field label="Beräknad kostnad" value={p.estimated_cost} />
+              <Field label="Tidplan" value={timeline} />
+              <Field label="Publicerad" value={new Date(p.published_at).toLocaleDateString('sv-SE')} />
+              <Field label="Källa" value={p.source_name} />
+            </dl>
+            <MiniMap lat={p.lat} lng={p.lng} />
+          </div>
 
           {/* Participants */}
           {p.participants && p.participants.length > 0 && (
