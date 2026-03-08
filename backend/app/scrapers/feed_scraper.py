@@ -200,8 +200,15 @@ async def _scrape_source(source: dict) -> list[dict]:
 
         # Filter: skip articles unlikely to be about construction projects
         construction_kw = [
+            # Swedish
             "bygg", "konstruktion", "projekt", "fastighet", "renovering",
             "exploatering", "infrastruktur", "bostäder", "kontor", "fabrik",
+            # Norwegian
+            "bygg", "anlegg", "prosjekt", "eiendom", "rehabilitering",
+            "infrastruktur", "boliger", "næringsbygg", "fabrikk",
+            # Danish
+            "byggeri", "konstruktion", "projekt", "ejendom", "renovering",
+            "infrastruktur", "boliger", "erhvervs", "fabrik",
         ]
         if not any(kw in full_text.lower() for kw in construction_kw):
             continue
@@ -248,6 +255,7 @@ async def _scrape_source(source: dict) -> list[dict]:
             "timeline_start": start,
             "timeline_end": end,
             "status": status,
+            "country": source.get("country", "Sverige"),
             "source_url": getattr(entry, "link", ""),
             "source_name": source["name"],
             "published_at": pub or datetime.utcnow(),

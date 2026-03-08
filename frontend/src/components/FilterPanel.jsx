@@ -11,10 +11,10 @@ export default function FilterPanel({ filters, options, onChange }) {
 
   const clearAll = () => {
     setLocalSearch('')
-    onChange({ type: '', region: '', status: '', search: '' })
+    onChange({ type: '', region: '', status: '', country: '', search: '' })
   }
 
-  const hasFilters = filters.type || filters.region || filters.status || filters.search
+  const hasFilters = filters.type || filters.region || filters.status || filters.country || filters.search
 
   return (
     <div className="flex flex-wrap gap-2 items-end">
@@ -54,6 +54,18 @@ export default function FilterPanel({ filters, options, onChange }) {
       >
         <option value="">Alla regioner</option>
         {options.regions.map(r => <option key={r} value={r}>{r}</option>)}
+      </select>
+
+      {/* Country */}
+      <select
+        value={filters.country}
+        onChange={e => set('country', e.target.value)}
+        className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">Alla länder</option>
+        <option value="Sverige">🇸🇪 Sverige</option>
+        <option value="Norge">🇳🇴 Norge</option>
+        <option value="Danmark">🇩🇰 Danmark</option>
       </select>
 
       {/* Status */}

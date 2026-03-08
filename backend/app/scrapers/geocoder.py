@@ -1,10 +1,10 @@
 """
-Geocoding Swedish locations using a local city/region lookup table.
+Geocoding Nordic locations (Sweden, Norway, Denmark) using a local lookup table.
 Falls back to None (frontend handles approximate placement via MapView CITY_COORDS).
 No external API calls — instant, no rate-limits.
 """
 
-# Coordinate table for Swedish cities and regions (lat, lng)
+# Coordinate table for Nordic cities and regions (lat, lng)
 _CITY_COORDS: dict[str, tuple[float, float]] = {
     "Stockholm":         (59.3326, 18.0649),
     "Göteborg":          (57.7089, 11.9746),
@@ -75,12 +75,66 @@ _CITY_COORDS: dict[str, tuple[float, float]] = {
     "Blekinge":          (56.1667, 15.5833),
     "Gotland":           (57.4684, 18.4867),
     "Uppland":           (59.8586, 17.6389),
+
+    # ── Norway ───────────────────────────────────────────────────────────────
+    "Oslo":              (59.9139, 10.7522),
+    "Bergen":            (60.3913, 5.3221),
+    "Trondheim":         (63.4305, 10.3951),
+    "Stavanger":         (58.9700, 5.7331),
+    "Tromsø":            (69.6489, 18.9551),
+    "Drammen":           (59.7440, 10.2045),
+    "Fredrikstad":       (59.2181, 10.9298),
+    "Kristiansand":      (58.1467, 7.9956),
+    "Sandnes":           (58.8520, 5.7353),
+    "Sarpsborg":         (59.2836, 11.1097),
+    "Skien":             (59.2082, 9.5536),
+    "Ålesund":           (62.4721, 6.1549),
+    "Bodø":              (67.2804, 14.4049),
+    "Hamar":             (60.7945, 11.0679),
+    "Lillestrøm":        (59.9553, 11.0530),
+    "Asker":             (59.8340, 10.4390),
+    "Bærum":             (59.8940, 10.5290),
+    # Norwegian regions (fylker)
+    "Viken":             (59.9139, 10.7522),
+    "Innlandet":         (61.1172, 10.4669),
+    "Vestfold og Telemark": (59.4500, 9.4000),
+    "Agder":             (58.3000, 7.9000),
+    "Rogaland":          (59.1489, 6.0144),
+    "Vestland":          (60.3913, 5.3221),
+    "Møre og Romsdal":   (62.7222, 7.0104),
+    "Trøndelag":         (63.4305, 10.3951),
+    "Nordland":          (67.2804, 14.4049),
+    "Troms og Finnmark": (69.6489, 18.9551),
+
+    # ── Denmark ──────────────────────────────────────────────────────────────
+    "København":         (55.6761, 12.5683),
+    "Aarhus":            (56.1629, 10.2039),
+    "Odense":            (55.4038, 10.4024),
+    "Aalborg":           (57.0488, 9.9217),
+    "Esbjerg":           (55.4667, 8.4500),
+    "Randers":           (56.4607, 10.0363),
+    "Kolding":           (55.4904, 9.4722),
+    "Horsens":           (55.8607, 9.8448),
+    "Vejle":             (55.7093, 9.5360),
+    "Roskilde":          (55.6415, 12.0803),
+    "Helsingør":         (56.0370, 12.6136),
+    "Silkeborg":         (56.1716, 9.5484),
+    "Næstved":           (55.2292, 11.7612),
+    "Fredericia":        (55.5640, 9.7530),
+    "Viborg":            (56.4520, 9.4023),
+    # Danish regions
+    "Hovedstaden":       (55.7500, 12.3500),
+    "Sjælland":          (55.4000, 11.8000),
+    "Syddanmark":        (55.3600, 9.9000),
+    "Midtjylland":       (56.3000, 9.5000),
+    "Nordjylland":       (57.0500, 9.9200),
+    "Cope":              (55.6761, 12.5683),  # short alias
 }
 
 
 async def geocode_location(location: str, region: str = "") -> tuple[float, float] | None:
     """
-    Return (lat, lng) for a Swedish location string via local lookup.
+    Return (lat, lng) for a Nordic location string via local lookup.
     Tries exact match, then partial match against location and region.
     Returns None if unknown — frontend handles fallback placement.
     """

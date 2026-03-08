@@ -1,4 +1,5 @@
 import os
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.models import Base
 
@@ -25,6 +26,17 @@ SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Migration: add country column to existing DBs
+        if DATABASE_URL.startswith("sqlite"):
+            try:
+                await conn.execute(text("ALTER TABLE projects ADD COLUMN country VARCHAR DEFAULT 'Sverige'"))
+            except Exception:
+                pass  # column already exists
+        else:
+            try:
+                await conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS country VARCHAR DEFAULT 'Sverige'"))
+            except Exception:
+                pass
 
 
 async def get_db() -> AsyncSession:

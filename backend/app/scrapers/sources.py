@@ -1,5 +1,5 @@
 """
-Swedish construction news RSS sources.
+Nordic construction news RSS sources (Sweden, Norway, Denmark).
 Each entry describes a feed and how to classify its projects.
 """
 
@@ -67,8 +67,58 @@ RSS_SOURCES = [
         "name": "Trafikverket – Nyheter",
         "url": "https://www.trafikverket.se/om-oss/nyheter/rss/",
         "default_type": "Infrastruktur",
+        "country": "Sverige",
+    },
+    # ── Norwegian sources ────────────────────────────────────────────────────────
+    {
+        "name": "Bygg.no",
+        "url": "https://www.bygg.no/rss",
+        "default_type": "Övrigt",
+        "country": "Norge",
+    },
+    {
+        "name": "NCC Norge – Pressemeldinger",
+        "url": "https://www.mynewsdesk.com/no/ncc-norge/pressreleases/feed/rss",
+        "default_type": "Övrigt",
+        "country": "Norge",
+    },
+    {
+        "name": "Statsbygg – Nyheter",
+        "url": "https://www.statsbygg.no/feed/",
+        "default_type": "Offentligt",
+        "country": "Norge",
+    },
+    {
+        "name": "Skanska Norge – Pressemeldinger",
+        "url": "https://www.mynewsdesk.com/no/skanska/pressreleases/feed/rss",
+        "default_type": "Övrigt",
+        "country": "Norge",
+    },
+    # ── Danish sources ───────────────────────────────────────────────────────────
+    {
+        "name": "Byggeforum",
+        "url": "https://byggeforum.dk/feed/",
+        "default_type": "Övrigt",
+        "country": "Danmark",
+    },
+    {
+        "name": "MT Højgaard – Nyheder",
+        "url": "https://www.mthojgaard.dk/feed/",
+        "default_type": "Övrigt",
+        "country": "Danmark",
+    },
+    {
+        "name": "Vejdirektoratet – Nyheder",
+        "url": "https://www.vejdirektoratet.dk/rss/nyheder",
+        "default_type": "Infrastruktur",
+        "country": "Danmark",
     },
 ]
+
+# Country tag added retroactively to existing Swedish sources
+for _s in RSS_SOURCES:
+    if "country" not in _s:
+        _s["country"] = "Sverige"
 
 # Swedish county (region) name mapping — used to detect region from text
 SWEDISH_REGIONS = [
@@ -79,6 +129,24 @@ SWEDISH_REGIONS = [
     # Cities also used as region labels
     "Göteborg", "Malmö", "Helsingborg", "Linköping", "Västerås",
     "Örebro", "Norrköping", "Umeå", "Lund", "Gävle", "Borås",
+]
+
+# Norwegian county (fylke) name mapping
+NORWEGIAN_REGIONS = [
+    "Oslo", "Viken", "Innlandet", "Vestfold og Telemark", "Agder",
+    "Rogaland", "Vestland", "Møre og Romsdal", "Trøndelag",
+    "Nordland", "Troms og Finnmark",
+    # Cities also used as region labels
+    "Bergen", "Trondheim", "Stavanger", "Tromsø", "Drammen",
+    "Fredrikstad", "Kristiansand", "Sandnes", "Sarpsborg", "Skien",
+]
+
+# Danish region name mapping
+DANISH_REGIONS = [
+    "Hovedstaden", "Sjælland", "Syddanmark", "Midtjylland", "Nordjylland",
+    # Cities also used as region labels
+    "København", "Aarhus", "Odense", "Aalborg", "Esbjerg",
+    "Randers", "Kolding", "Horsens", "Vejle", "Roskilde",
 ]
 
 # Participant roles to look for in Swedish text

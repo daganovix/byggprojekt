@@ -11,8 +11,8 @@ const API = '/api'
 export default function App() {
   const [projects, setProjects] = useState([])
   const [stats, setStats] = useState(null)
-  const [filterOptions, setFilterOptions] = useState({ types: [], regions: [], statuses: [] })
-  const [filters, setFilters] = useState({ type: '', region: '', status: '', search: '' })
+  const [filterOptions, setFilterOptions] = useState({ types: [], regions: [], statuses: [], countries: [] })
+  const [filters, setFilters] = useState({ type: '', region: '', status: '', country: '', search: '' })
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('map') // 'map' | 'list'
   const [selectedProject, setSelectedProject] = useState(null)
@@ -25,6 +25,7 @@ export default function App() {
       if (filters.type)    params.type    = filters.type
       if (filters.region)  params.region  = filters.region
       if (filters.status)  params.status  = filters.status
+      if (filters.country) params.country = filters.country
       if (filters.search)  params.search  = filters.search
 
       const [projRes, statsRes] = await Promise.all([
@@ -75,12 +76,12 @@ export default function App() {
       <header className="bg-blue-700 text-white shadow-md">
         <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Byggprojekt Sverige</h1>
-            <p className="text-blue-200 text-xs">Nyheter och karta över nya byggprojekt</p>
+            <h1 className="text-xl font-bold tracking-tight">Byggprojekt Norden</h1>
+            <p className="text-blue-200 text-xs">Nyheter och karta över nya byggprojekt i Sverige, Norge och Danmark</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-blue-200">
-              {projects.length} projekt {filters.type || filters.region || filters.search ? '(filtrerade)' : 'totalt'}
+              {projects.length} projekt {filters.type || filters.region || filters.country || filters.search ? '(filtrerade)' : 'totalt'}
             </span>
             <button
               onClick={triggerRefresh}

@@ -26,6 +26,7 @@ class ProjectDB(Base):
     timeline_start = Column(String, default="")
     timeline_end = Column(String, default="")
     status = Column(String, default="Planerat")    # Planerat, Pågående, Klart
+    country = Column(String, default="Sverige")    # Sverige, Norge, Danmark
     source_url = Column(String, default="")
     source_name = Column(String, default="")
     published_at = Column(DateTime, default=datetime.utcnow)
@@ -55,6 +56,7 @@ class ProjectOut(BaseModel):
     timeline_start: str
     timeline_end: str
     status: str
+    country: str = "Sverige"
     source_url: str
     source_name: str
     published_at: datetime

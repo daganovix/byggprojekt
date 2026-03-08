@@ -97,7 +97,7 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 
-app = FastAPI(title="Swedish Construction Projects API", lifespan=lifespan)
+app = FastAPI(title="Nordic Construction Projects API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -114,6 +114,7 @@ async def list_projects(
     type: Optional[str] = None,
     region: Optional[str] = None,
     status: Optional[str] = None,
+    country: Optional[str] = None,
     min_cost: Optional[float] = None,
     max_cost: Optional[float] = None,
     search: Optional[str] = None,
@@ -127,6 +128,8 @@ async def list_projects(
         q = q.where(ProjectDB.type == type)
     if region:
         q = q.where(ProjectDB.region == region)
+    if country:
+        q = q.where(ProjectDB.country == country)
     if status:
         q = q.where(ProjectDB.status == status)
     if min_cost is not None:
@@ -546,7 +549,8 @@ async def get_filter_options(db: AsyncSession = Depends(get_db)):
     types = sorted({r.type for r in rows if r.type})
     regions = sorted({r.region for r in rows if r.region})
     statuses = sorted({r.status for r in rows if r.status})
-    return {"types": types, "regions": regions, "statuses": statuses}
+    countries = sorted({r.country for r in rows if r.country})
+    return {"types": types, "regions": regions, "statuses": statuses, "countries": countries}
 
 
 # ── Helper ───────────────────────────────────────────────────────────────────
@@ -573,6 +577,7 @@ def _to_out(row: ProjectDB) -> ProjectOut:
         timeline_start=row.timeline_start or "",
         timeline_end=row.timeline_end or "",
         status=row.status or "",
+        country=getattr(row, "country", None) or "Sverige",
         source_url=row.source_url or "",
         source_name=row.source_name or "",
         published_at=row.published_at or __import__("datetime").datetime.utcnow(),
