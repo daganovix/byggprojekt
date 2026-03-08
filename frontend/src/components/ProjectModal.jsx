@@ -828,6 +828,7 @@ export default function ProjectModal({ project: p, onClose }) {
       : null
 
   return (
+    <>
     <div
       className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/50"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
@@ -958,5 +959,6 @@ export default function ProjectModal({ project: p, onClose }) {
       </div>
     </div>
     {updatesOpen && <UpdatesPanel project={p} onClose={() => setUpdatesOpen(false)} />}
+    </>
   )
 }
